@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-
+from datetime import date, timedelta
 
 CAP_WEB_RESEARCH = "web_research"
 CAP_X_RESEARCH = "x_research"
 CAP_CODE_EXECUTION = "code_execution"
 CAP_STRUCTURED_OUTPUT = "structured_output"
 
-XAI_WEB_SEARCH = "web_search"
-XAI_X_SEARCH = "x_search"
-XAI_CODE_INTERPRETER = "code_interpreter"  # documented Responses/OpenAI-compatible name
 
 
 @dataclass(frozen=True)
@@ -46,10 +43,6 @@ def x_research(
     excluded_x_handles=None,
     require_date_window: bool = True,
 ) -> ToolRequest:
-    """
-    Date window: StillPoint cost/scope policy when require_date_window=True.
-    xAI API does not document from_date as required. Marked policy, not vendor requirement.
-    """
     if allowed_x_handles and excluded_x_handles:
         raise ValueError("x_research: allowed and excluded handles are mutually exclusive")
     if allowed_x_handles and len(allowed_x_handles) > 20:
@@ -72,58 +65,81 @@ def code_execution() -> ToolRequest:
 
 
 def to_xai_tools(tools: list[ToolRequest] | None) -> list[dict]:
-    specs: list[dict] = []
-    for tool in tools or []:
-        if tool.capability == CAP_WEB_RESEARCH:
-            spec: dict = {"type": XAI_WEB_SEARCH}
-            filters = {}
-            if tool.allowed_domains:
-                filters["allowed_domains"] = list(tool.allowed_domains)
-            if tool.excluded_domains:
-                filters["excluded_domains"] = list(tool.excluded_domains)
-            if filters:
-                spec["filters"] = filters
-            specs.append(spec)
-        elif tool.capability == CAP_X_RESEARCH:
-            spec = {"type": XAI_X_SEARCH}
-            if tool.from_date:
-                spec["from_date"] = tool.from_date
-            if tool.to_date:
-                spec["to_date"] = tool.to_date
-            if tool.allowed_x_handles:
-                spec["allowed_x_handles"] = list(tool.allowed_x_handles)
-            if tool.excluded_x_handles:
-                spec["excluded_x_handles"] = list(tool.excluded_x_handles)
-            specs.append(spec)
-        elif tool.capability == CAP_CODE_EXECUTION:
-            specs.append({"type": XAI_CODE_INTERPRETER})
-        elif tool.capability == CAP_STRUCTURED_OUTPUT:
-            continue
-        else:
-            raise ValueError(f"unknown capability: {tool.capability}")
-    return specs
+    """Compatibility shim; xAI mapping is implemented in the xAI provider layer."""
+    from .providers.xai_tools import to_xai_tools as _provider_to_xai_tools
+    return _provider_to_xai_tools(tools)
 
 
 SOURCE_REVIEW_MARKERS = ("source integrity", "citation", "fact-check", "fact check", "sources")
 
 
-def capabilities_for_call(*, agent_id: str, plan_capabilities: list[str], review_reason: str = "") -> list[ToolRequest]:
-    """Request-scoped. Roles do not own tools."""
-    caps = list(plan_capabilities)
+def tool_request_to_dict(request: ToolRequest) -> dict:
+    return {
+        "capability": request.capability,
+        "allowed_domains": list(request.allowed_domains),
+        "excluded_domains": list(request.excluded_domains),
+        "allowed_x_handles": list(request.allowed_x_handles),
+        "excluded_x_handles": list(request.excluded_x_handles),
+        "from_date": request.from_date,
+        "to_date": request.to_date,
+    }
+
+
+def tool_request_from_dict(raw: dict) -> ToolRequest:
+    capability = str(raw.get("capability") or "")
+    if capability == CAP_WEB_RESEARCH:
+        return web_research(
+            allowed_domains=list(raw.get("allowed_domains") or []),
+            excluded_domains=list(raw.get("excluded_domains") or []),
+        )
+    if capability == CAP_X_RESEARCH:
+        return x_research(
+            from_date=raw.get("from_date"),
+            to_date=raw.get("to_date"),
+            allowed_x_handles=list(raw.get("allowed_x_handles") or []),
+            excluded_x_handles=list(raw.get("excluded_x_handles") or []),
+            require_date_window=False,
+        )
+    if capability == CAP_CODE_EXECUTION:
+        return code_execution()
+    if capability == CAP_STRUCTURED_OUTPUT:
+        return ToolRequest(capability=CAP_STRUCTURED_OUTPUT)
+    raise ValueError(f"unknown capability: {capability}")
+
+
+def capabilities_for_call(
+    *,
+    agent_id: str,
+    plan_capabilities: list[str],
+    agent_capabilities: list[str] | None = None,
+    review_reason: str = "",
+    scoped_requests: list[dict] | None = None,
+) -> list[ToolRequest]:
+    """Request-scoped semantic capabilities. Roles do not permanently own tools."""
+    caps = list(agent_capabilities if agent_capabilities is not None else plan_capabilities)
     if agent_id == "stillpoint":
         if any(m in (review_reason or "").lower() for m in SOURCE_REVIEW_MARKERS):
             return [web_research()]
         return []
-    if agent_id == "author":
+    if agent_id in {"author", "orchestra"}:
         return []
-    if agent_id == "orchestra":
-        return []
+
+    if scoped_requests is not None:
+        requested = [tool_request_from_dict(r) for r in scoped_requests]
+        allowed_by_role = {
+            "research": {CAP_WEB_RESEARCH, CAP_X_RESEARCH},
+            "press": {CAP_WEB_RESEARCH},
+            "signal": {CAP_WEB_RESEARCH, CAP_X_RESEARCH},
+            "ledger": {CAP_WEB_RESEARCH, CAP_CODE_EXECUTION},
+            "builder": {CAP_WEB_RESEARCH, CAP_CODE_EXECUTION},
+        }.get(agent_id, set())
+        return [r for r in requested if r.capability in allowed_by_role and r.capability in caps]
+
     out: list[ToolRequest] = []
-    if "web_research" in caps and agent_id in {"research", "press", "signal", "ledger", "builder"}:
+    if CAP_WEB_RESEARCH in caps and agent_id in {"research", "press", "signal", "ledger", "builder"}:
         out.append(web_research())
-    if "x_research" in caps and agent_id in {"signal", "research"}:
-        from datetime import date, timedelta
+    if CAP_X_RESEARCH in caps and agent_id in {"signal", "research"}:
         out.append(x_research(from_date=(date.today() - timedelta(days=30)).isoformat()))
-    if "code_execution" in caps and agent_id in {"ledger", "builder"}:
+    if CAP_CODE_EXECUTION in caps and agent_id in {"ledger", "builder"}:
         out.append(code_execution())
     return out

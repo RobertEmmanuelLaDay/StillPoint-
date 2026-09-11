@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stillpoint-core"
+version = "0.1.0rc1"
+description = "Provider-independent company operating system runtime for StillPoint"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "Robert Emmanuel LaDay"}]
+dependencies = []
+
+[project.scripts]
+stillpoint = "stillpoint.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["stillpoint*"]
+
+[tool.setuptools.package-data]
+stillpoint = ["contracts/*.json", "migrations/*.sql", "defaults/*.json"]

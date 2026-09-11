@@ -25,6 +25,7 @@ class Planner:
         self.default_model = default_model
         self.smart = smart
         self.fallback = Router(registry, policy)
+        self.last_provenance: dict = {}
 
     @staticmethod
     def _extract_json(text: str) -> dict:
@@ -77,31 +78,56 @@ class Planner:
         raw.setdefault("approval_reason", "")
         reason = raw.get("routing_reason") or "model routing"
         if len(reason) < 12:
-            reason = reason + " (normalized)"
+            reason += " (normalized)"
         raw["routing_reason"] = reason
         return raw
 
     def _apply_policy(self, plan: WorkPlan, goal: str) -> WorkPlan:
+        # One authority assessment is the runtime truth source for this plan overlay.
+        bundle = self.policy.authority(goal)
+        actions = list(bundle.restricted_intents)
         review_required, review_reason = self.policy.review_requirement(goal)
-        approval_required, approval_reason = self.policy.approval_requirement(goal)
+
         if review_required:
             plan.review_required = True
             if review_reason and review_reason not in plan.review_reason:
                 plan.review_reason = ", ".join(x for x in [plan.review_reason, review_reason] if x)
-        if approval_required:
+
+        plan.restricted_actions = actions
+        plan.external_action_intent = actions[0] if actions else "none"
+        if actions:
             plan.approval_required = True
-            if approval_reason:
-                plan.approval_reason = approval_reason
+            reasons = []
+            from .intent import approval_reason_for
+            for action in actions:
+                reason = approval_reason_for(action) or action
+                if reason not in reasons:
+                    reasons.append(reason)
+            plan.approval_reason = ", ".join(reasons)
+        elif not plan.approval_required:
+            plan.approval_reason = ""
+
+        plan.authority_revision = self.policy.authority_revision(goal)
+
         if plan.primary == "stillpoint":
             plan.review_required = False
             plan.review_reason = ""
-        intent = self.policy.action_intent(goal)
-        if intent != "none" or not approval_required:
-            plan.external_action_intent = intent
+
+        # Preserve stage-scoped capabilities. Research contribution owns search by default;
+        # the primary does not inherit it merely because the overall task needs research.
+        if not plan.primary_capabilities:
+            plan.primary_capabilities = list(plan.capabilities)
+        if "research" in plan.contributors and plan.primary != "research":
+            plan.primary_capabilities = [c for c in plan.primary_capabilities if c not in {"web_research", "x_research"}]
+        plan.primary_tool_requests = [r for r in (plan.tool_requests or []) if r.get("capability") in plan.primary_capabilities]
+        for spec in plan.contributor_specs:
+            if "tool_requests" not in spec:
+                spec["tool_requests"] = [r for r in (plan.tool_requests or []) if r.get("capability") in spec.get("capabilities", [])]
         return plan
 
     def plan(self, goal: str) -> tuple[WorkPlan, str, bool, str]:
         baseline = self.fallback.plan(goal)
+        self.last_provenance = {}
         if not self.smart:
             return self._apply_policy(baseline, goal), "", False, "deterministic"
 
@@ -117,8 +143,16 @@ class Planner:
                 json_schema=load_work_plan_schema(),
                 json_schema_name="work_plan",
             )
+            self.last_provenance = {
+                "provider_response_id": getattr(result, "provider_response_id", None) or "",
+                "usage": getattr(result, "usage", None) or {},
+                "citations": list(getattr(result, "citations", None) or []),
+                "model": getattr(result, "model", model) or model,
+                "status": getattr(result, "status", "completed"),
+            }
             raw = self._normalize_legacy_plan(self._extract_json(result.text))
             contract = validate_work_plan_dict(raw)
+            contributor_specs = contract.to_runtime_dict()["contributor_specs"]
             plan = WorkPlan(
                 primary=contract.primary,
                 contributors=contract.contributor_ids(),
@@ -128,14 +162,30 @@ class Planner:
                 approval_reason=contract.approval_reason,
                 routing_reason=contract.routing_reason,
                 capabilities=list(contract.capabilities),
+                primary_capabilities=list(contract.capabilities),
                 research_required=contract.research_required,
                 expected_artifact=contract.expected_artifact,
                 external_action_intent=contract.external_action_intent,
-                contributor_specs=contract.to_runtime_dict()["contributor_specs"],
+                contributor_specs=contributor_specs,
             )
+            plan.tool_requests = list(getattr(baseline, "tool_requests", []) or [])
+            plan.primary_tool_requests = [
+                r for r in plan.tool_requests if r.get("capability") in plan.primary_capabilities
+            ]
+            for spec in plan.contributor_specs:
+                spec["tool_requests"] = [
+                    r for r in plan.tool_requests if r.get("capability") in spec.get("capabilities", [])
+                ]
+
             if contract.research_required and "research" not in plan.contributors and plan.primary != "research":
                 if len(plan.contributors) < 3:
                     plan.contributors.append("research")
+                    plan.contributor_specs.append({
+                        "id": "research",
+                        "reason": "research required by work plan",
+                        "capabilities": [c for c in plan.capabilities if c in {"web_research", "x_research"}],
+                        "before": "primary",
+                    })
             plan = self._apply_policy(plan, goal)
             return plan, result.text, True, result.model
         except Exception as exc:

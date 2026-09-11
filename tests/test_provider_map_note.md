@@ -1,0 +1,1 @@
+Provider mapping (web_research→web_search, etc.) is implemented in stillpoint/providers/xai_tools.py. stillpoint/capabilities.py exposes only a compatibility shim for older Packet 2 tests. Company policy remains provider-independent.

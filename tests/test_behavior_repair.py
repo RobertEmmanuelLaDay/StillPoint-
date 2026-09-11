@@ -60,8 +60,6 @@ class MatcherTests(unittest.TestCase):
 class RouterTests(unittest.TestCase):
     def setUp(self):
         cfg = ROOT / "config" / "agents.json"
-        if not cfg.exists():
-            cfg = Path("/home/workdir/artifacts/STILLPOINT_CODEX_INTEGRATION_PACKET_2/config/agents.json")
         self.router = Router(AgentRegistry(cfg), CompanyPolicy())
 
     def test_python_write_is_builder(self):

@@ -1,3 +1,5 @@
+"""Compatibility layer. Frozen corpora are not rewritten."""
+
 from __future__ import annotations
 
 PROVIDER_TO_SEMANTIC = {
@@ -13,9 +15,7 @@ def canonical_capability(name: str) -> str | None:
         return None
     if name in SEMANTIC:
         return name
-    if name in PROVIDER_TO_SEMANTIC:
-        return PROVIDER_TO_SEMANTIC[name]
-    return f"unknown:{name}"
+    return PROVIDER_TO_SEMANTIC.get(name, f"unknown:{name}")
 
 
 def canonical_set(names: list[str] | None) -> list[str]:

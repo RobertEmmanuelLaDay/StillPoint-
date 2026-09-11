@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 
 _SPLIT = re.compile(
-    r"(?<=[.!?])\s+|(?:\n+)|(?:;\s+)|(?:\s+and then\s+)|(?:\s+but then\s+)|(?:,\s+then\s+)",
+    r"(?<=[.!?])\s+|(?:\n+)|(?:;\s+)|(?:\s+and then\s+)|(?:\s+but then\s+)|(?:,\s+then\s+)|"
+    r"(?:\s+and\s+(?=(?:send|email|transmit|deliver|forward|publish|release|buy|spend|pay|purchase|sign|initial|execute|delete|wipe|destroy|upload|post|tweet)\b))",
     re.I,
 )
 

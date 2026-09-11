@@ -23,6 +23,7 @@ from stillpoint.registry import AgentRegistry
 from stillpoint.runtime import CompanyRuntime
 
 from corpus import CASES
+from frozen import FROZEN_50, load_frozen_50, verify_frozen_corpora
 from scoring import CaseScore, aggregate, combine, score_bool, score_contributors, score_eq, score_primary, score_tools
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
@@ -37,9 +38,18 @@ def _tools_for(plan: WorkPlan) -> list[str]:
     names: list[str] = []
     agents = [plan.primary, *plan.contributors]
     for agent_id in agents:
+        if agent_id == plan.primary:
+            agent_caps = list(getattr(plan, "primary_capabilities", None) or plan.capabilities)
+        else:
+            agent_caps = []
+            for item in getattr(plan, "contributor_specs", []) or []:
+                if item.get("id") == agent_id:
+                    agent_caps = list(item.get("capabilities") or [])
+                    break
         reqs = capabilities_for_call(
             agent_id=agent_id,
             plan_capabilities=list(plan.capabilities),
+            agent_capabilities=agent_caps,
             review_reason=plan.review_reason,
         )
         for spec in to_xai_tools(reqs):
@@ -67,6 +77,7 @@ def _runtime(tmp: Path, provider=None) -> CompanyRuntime:
         provider=provider or MockProvider(),
         default_model="mock",
         smart_routing=False,
+        allowed_import_roots=[tmp, FIXTURES],
     )
 
 
@@ -275,8 +286,9 @@ def main(argv=None) -> int:
     parser.add_argument("--ids", nargs="*")
     args = parser.parse_args(argv)
     RESULTS.mkdir(parents=True, exist_ok=True)
-    dump_jsonl(Path(__file__).resolve().parent / "stillpoint_adversarial_50.jsonl")
-    selected = CASES
+    # Evaluation consumes the byte-frozen JSONL. It never regenerates or rewrites it.
+    verify_frozen_corpora()
+    selected = load_frozen_50()
     if args.ids:
         selected = [c for c in CASES if c["id"] in args.ids]
     results = [eval_case(c, live=args.live) for c in selected]

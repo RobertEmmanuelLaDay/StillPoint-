@@ -4,6 +4,7 @@ from .base import ProviderResult
 
 
 class MockProvider:
+    default_model = "mock"
     def generate(self, *, system: str, prompt: str, model: str, tools=None, **kwargs) -> ProviderResult:
         if "Begin with exactly one judgment word" in prompt:
             return ProviderResult(text="PASS\nMock review: no simulated defect.", model="mock")
