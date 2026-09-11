@@ -78,10 +78,13 @@ def cmd_doctor(rt: CompanyRuntime, root: Path) -> int:
         except Exception as exc:
             checks["corpus_integrity"]={"ok":False,"available":True,"error":str(exc)}
     else:
-        # Evaluator corpora are release-development assets, not runtime state.
-        # A wheel installation remains healthy without them; source checkouts
-        # verify the immutable corpus whenever the manifest is present.
-        checks["corpus_integrity"]={"ok":True,"available":False,"note":"evaluator assets not installed"}
+        source_checkout = (root / "pyproject.toml").is_file() or (root / ".git").exists()
+        if source_checkout:
+            checks["corpus_integrity"]={"ok":False,"available":False,"error":"frozen corpus manifest missing from source checkout"}
+        else:
+            # Evaluator corpora are release-development assets, not runtime state.
+            # A runtime-only wheel installation remains healthy without them.
+            checks["corpus_integrity"]={"ok":True,"available":False,"note":"evaluator assets not installed"}
     provider=os.getenv("STILLPOINT_PROVIDER","mock")
     checks["provider"]={"ok":provider=="mock" or bool(os.getenv("XAI_API_KEY")),"name":provider,"live_credentials_present":bool(os.getenv("XAI_API_KEY")) if provider=="xai" else None}
     checks["overall_ok"]=all(v.get("ok",False) for k,v in checks.items() if isinstance(v,dict))

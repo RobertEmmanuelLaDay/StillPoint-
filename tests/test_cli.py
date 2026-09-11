@@ -26,6 +26,17 @@ class CLITests(unittest.TestCase):
             self.assertTrue(data['corpus_integrity']['ok'])
             self.assertFalse(data['corpus_integrity']['available'])
 
+    def test_doctor_source_checkout_fails_closed_when_corpus_manifest_missing(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            tmp=Path(d)
+            (tmp/'pyproject.toml').write_text('[project]\nname="fake"\nversion="0"\n')
+            p=self.run_cli(tmp,'doctor')
+            self.assertNotEqual(p.returncode,0)
+            data=json.loads(p.stdout)
+            self.assertFalse(data['corpus_integrity']['ok'])
+            self.assertIn('manifest missing',data['corpus_integrity']['error'])
+
     def test_submit_and_status(self):
         with tempfile.TemporaryDirectory() as d:
             tmp=Path(d);(tmp/'config').mkdir();(tmp/'config'/'agents.json').write_text((ROOT/'config'/'agents.json').read_text())

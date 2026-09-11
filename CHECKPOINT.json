@@ -10,7 +10,7 @@
       "failed": 0
     },
     "release_candidate": {
-      "passed": 171,
+      "passed": 172,
       "failed": 0
     },
     "end_to_end": {
@@ -84,6 +84,7 @@
     "action_result_exact_binding": "PASS",
     "adapter_identity_registry_bound": "PASS",
     "test_paths_checkout_local": "PASS",
-    "wheel_runtime_doctor": "PASS"
+    "wheel_runtime_doctor": "PASS",
+    "source_checkout_missing_corpus_fails_closed": "PASS"
   }
 }
