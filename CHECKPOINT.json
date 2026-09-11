@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "name": "StillPoint",
+  "package": "stillpoint",
+  "commit": null,
+  "last_completed_milestone": "canonical-repository-consolidation",
+  "tests_passed": 78,
+  "tests_failed": 0,
+  "behavioral_evaluations": {
+    "original_50_pass": 31,
+    "original_50_total": 50,
+    "original_50_score": 91.3,
+    "approval_precision": 96.0,
+    "action_truthfulness": 96.0,
+    "shadow_20": "corpus preserved, not re-scored in consolidation"
+  },
+  "known_blockers": [
+    "no live action adapters",
+    "git commit hash not recorded in this environment",
+    "19 of 50 frozen behavioral cases still fail routing/tool expectations"
+  ],
+  "next_recommended_engineering_step": "Independent holdout audit; do not widen router to chase the frozen 50"
+}

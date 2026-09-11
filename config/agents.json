@@ -1,0 +1,12 @@
+{
+  "agents": [
+    {"id": "orchestra", "name": "Orchestra", "function": "Chief of Staff / executive operations", "mission": "Turn the CEO's ordinary-language goal into coordinated company work.", "owns": ["triage"], "does_not_own": ["specialist deliverables"], "tools": [], "model": null, "enabled": true},
+    {"id": "author", "name": "Author", "function": "Writing / editorial development", "mission": "Write in Robert's voice.", "owns": ["books"], "does_not_own": ["publishing operations"], "tools": [], "model": null, "enabled": true},
+    {"id": "press", "name": "Press", "function": "Publishing / production", "mission": "Publication-ready editions.", "owns": ["kdp"], "does_not_own": ["live publication without approval"], "tools": [], "model": null, "enabled": true},
+    {"id": "signal", "name": "Signal", "function": "Communications / growth", "mission": "Public communication drafts.", "owns": ["pr"], "does_not_own": ["sending without authority"], "tools": [], "model": null, "enabled": true},
+    {"id": "ledger", "name": "Ledger", "function": "Finance / CFO", "mission": "Economics visible.", "owns": ["budgets"], "does_not_own": ["moving money"], "tools": [], "model": null, "enabled": true},
+    {"id": "research", "name": "Research", "function": "Research / evidence", "mission": "Evidence packets.", "owns": ["sources"], "does_not_own": ["final manuscript voice"], "tools": [], "model": null, "enabled": true},
+    {"id": "builder", "name": "Builder", "function": "Software / automation", "mission": "Working code.", "owns": ["code"], "does_not_own": ["business policy"], "tools": [], "model": null, "enabled": true},
+    {"id": "stillpoint", "name": "Still Point", "function": "Independent quality / integrity review", "mission": "Challenge consequential work.", "owns": ["final review"], "does_not_own": ["routine rough drafting"], "tools": [], "model": null, "enabled": true}
+  ]
+}

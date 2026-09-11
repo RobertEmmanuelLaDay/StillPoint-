@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WorkPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "primary",
+    "contributors",
+    "capabilities",
+    "research_required",
+    "review_required",
+    "review_reason",
+    "expected_artifact",
+    "external_action_intent",
+    "approval_required",
+    "approval_reason",
+    "routing_reason"
+  ],
+  "properties": {
+    "primary": {
+      "type": "string",
+      "enum": ["orchestra", "author", "press", "signal", "ledger", "research", "builder", "stillpoint"]
+    },
+    "contributors": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "reason", "capabilities", "before"],
+        "properties": {
+          "id": {"type": "string", "enum": ["author", "press", "signal", "ledger", "research", "builder"]},
+          "reason": {"type": "string", "minLength": 8, "maxLength": 240},
+          "capabilities": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["web_research", "x_research", "code_execution", "structured_output"]}
+          },
+          "before": {"type": "string", "enum": ["primary", "next_contributor"]}
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["web_research", "x_research", "code_execution", "structured_output"]}
+    },
+    "research_required": {"type": "boolean"},
+    "review_required": {"type": "boolean"},
+    "review_reason": {"type": "string", "maxLength": 240},
+    "expected_artifact": {
+      "type": "string",
+      "enum": ["prose", "edition_pack", "communication_draft", "finance_memo", "evidence_packet", "code", "review_judgment", "plan", "other"]
+    },
+    "external_action_intent": {
+      "type": "string",
+      "enum": ["none", "send_email", "publish", "social_post", "spend", "sign", "delete", "other_external"]
+    },
+    "approval_required": {"type": "boolean"},
+    "approval_reason": {"type": "string", "maxLength": 240},
+    "routing_reason": {"type": "string", "minLength": 12, "maxLength": 240}
+  }
+}
