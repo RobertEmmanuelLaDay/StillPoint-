@@ -9,7 +9,8 @@ import urllib.request
 from typing import Any, Callable
 from urllib.request import Request
 
-from ..capabilities import ToolRequest, to_xai_tools
+from ..capabilities import ToolRequest
+from .xai_tools import to_xai_tools
 from .base import GenerateRequest, IncompleteResponseError, InProgressResponseError, ProviderResult
 
 ENDPOINT = "https://api.x.ai/v1/responses"
@@ -26,7 +27,9 @@ class XAIProvider:
         api_key: str | None = None,
         urlopen: Callable | None = None,
         sleep: Callable[[float], None] | None = None,
+        default_model: str | None = None,
     ):
+        self.default_model = default_model or os.getenv("XAI_MODEL") or "grok-4.6"
         self.api_key = api_key or os.getenv("XAI_API_KEY")
         if not self.api_key:
             raise RuntimeError("XAI_API_KEY is not set. Add it to your environment before live execution.")

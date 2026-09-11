@@ -1,50 +1,100 @@
-# StillPoint
+# StillPoint Core
 
-Company operating system for Robert Emmanuel LaDay.
+StillPoint is a provider-independent company operating-system runtime. Robert Emmanuel LaDay is the sole human CEO and final authority. The runtime coordinates durable company functions—Orchestra, Author, Press, Signal, Ledger, Research, Builder, and targeted Still Point review—without making any model or provider the company itself.
 
-StillPoint is the company runtime. Grok/xAI is a provider, not the owner of state.
+The governing execution invariant is:
 
-## Run
+> capacity ≠ permission ≠ execution ≠ completion
+
+Drafting is not sending. Preparation is not publication. Analysis is not spending. Approval is not execution. External execution is not complete until the exact authorized action has been executed by an adapter and the required structured evidence has been recorded.
+
+## Current release-candidate scope
+
+The core runtime includes deterministic and optional semantic authority assessment, structured planning, contributor handoffs, targeted review, durable SQLite state, artifact versions, managed attachments, resume/recovery, action requests/results, approval binding, idempotency, task budgets, provider provenance, frozen behavioral evaluation, and a CLI/operator surface.
+
+No production email, publishing, payment, signature, deletion, or destructive adapter is enabled in this release candidate. Approved external work without a live adapter stops at `ready_for_action`.
+
+## Install
+
+```bash
+python -m pip install .
+```
+
+A source checkout can also be run directly with Python 3.11+.
+
+## Configuration
+
+Set the repository/application root:
 
 ```bash
 export STILLPOINT_ROOT=$PWD
-python -m stillpoint.cli status
-python -m stillpoint.cli submit "Rewrite chapter 3 in my voice."
-python -m stillpoint.cli approve TASK_ID
 ```
 
-Provider: `STILLPOINT_PROVIDER=mock` (default) or `xai` with `XAI_API_KEY`.
-
-State: `state/company.sqlite` (created on first use).
-
-## Test
+The default provider is the deterministic mock provider. For xAI:
 
 ```bash
-python -m unittest discover -s tests -v
+export STILLPOINT_PROVIDER=xai
+export XAI_API_KEY=...
+export STILLPOINT_MODEL=<configured-model>
 ```
 
-## Evaluate
+Provider credentials are environment configuration and must never be committed to the repository.
+
+## CLI
+
+```bash
+python -m stillpoint.cli status
+python -m stillpoint.cli doctor
+python -m stillpoint.cli submit "Rewrite chapter 3 in my voice."
+python -m stillpoint.cli task TASK_ID
+python -m stillpoint.cli approvals
+python -m stillpoint.cli approve TASK_ID
+python -m stillpoint.cli reject TASK_ID
+python -m stillpoint.cli resume TASK_ID --note "CEO correction"
+python -m stillpoint.cli actions TASK_ID
+python -m stillpoint.cli artifacts TASK_ID
+```
+
+`doctor` checks the database/schema, agent registry, managed storage, provider configuration, and frozen evaluation-corpus hashes without exposing credentials.
+
+## State and recovery
+
+Runtime state is stored under `state/` by default. Task attachments are copied into task-scoped managed storage and fingerprinted. Resume instructions are persisted as new instruction events and re-planned so new external authority cannot inherit a weaker prior authorization envelope. Reusable stages are bound to stage-specific fingerprints.
+
+## Authority and external actions
+
+Restricted actions are preserved as a set, so compound instructions such as sign + spend or publish + send cannot be collapsed into a single permission. Consequential actions create durable `ActionRequest` records bound to exact task/authority/artifact identity. CEO approval is bound to those requests. Artifact revisions or authority changes stale the affected authorization.
+
+A task can become `completed` after external execution only when the registered adapter succeeds and structured evidence satisfies the request's exact success criteria. A null or dry-run adapter can never establish real-world completion.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -q
+```
+
+## Behavioral evaluation
+
+The frozen 50-case and shadow 20-case corpora are byte-frozen and guarded by SHA-256 hashes:
 
 ```bash
 python eval/run_eval.py
+python eval/run_calibrated.py
+python eval/run_shadow.py
 ```
 
-Frozen corpora in `eval/` are not edited during development.
+Evaluation consumes the frozen JSONL files; normal evaluator execution does not regenerate them. Remaining failures must be classified rather than repaired by changing the exam.
 
-## Layout
+## Repository layout
 
-- `stillpoint/` runtime, authority, providers, adapters
-- `config/agents.json` jurisdictions
-- `migrations/` schema history (also applied by `CompanyDB`)
-- `eval/` behavioral evaluator + frozen 50 + frozen shadow 20
-- `tests/` consolidated unit/integration tests
+- `stillpoint/` — runtime, policy, authority, providers, adapters, contracts
+- `config/agents.json` — durable function registry
+- `migrations/` — canonical ordered SQL migration history
+- `stillpoint/migrations/` — verified package mirror of canonical migrations
+- `eval/` — immutable behavioral corpora, scoring, reports
+- `tests/` — unit, integration, recovery, security, and end-to-end tests
+- `policies/COMPANY.md` — company authority boundary
 
-## Authority
+## Deliberately disabled/deferred
 
-`stillpoint.authority` classifies external action family, mode, and target.
-Planner/policy may not weaken a required restriction.
-
-## Unimplemented
-
-No live email, pay, sign, publish, or destroy adapters.
-Approved external work stops at `ready_for_action`.
+Production credentials and live external-action adapters are deployment concerns and are not required for the core release candidate. Native provider-specific bot swarms, provider-owned company memory, and prompt-kit-only architecture are outside the StillPoint core design.

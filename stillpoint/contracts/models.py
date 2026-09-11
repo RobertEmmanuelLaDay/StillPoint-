@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
 from typing import Any
 
 AGENT_IDS = ("orchestra", "author", "press", "signal", "ledger", "research", "builder", "stillpoint")
 CONTRIBUTOR_IDS = ("author", "press", "signal", "ledger", "research", "builder")
 CAPABILITIES = ("web_research", "x_research", "code_execution", "structured_output")
+
+
+class Effort(str, Enum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    XHIGH = "xhigh"
 
 
 @dataclass
@@ -74,16 +84,25 @@ class WorkPlanContract:
         )
 
 
-# alias used by validate.py
 WorkPlan = WorkPlanContract
 
 
-@dataclass
+def _aware(value: str):
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except Exception:
+        return None
+    return dt if dt.tzinfo is not None and dt.utcoffset() is not None else None
+
+
+@dataclass(frozen=True)
 class ArtifactRef:
     name: str
     sha256: str
     kind: str = "other"
     media_type: str = "text/plain"
+    artifact_id: str = ""
+    version: int = 1
 
 
 @dataclass
@@ -101,13 +120,19 @@ class ActionRequest:
     idempotency_key: str
     success_criteria: list[str]
     click_irreversible: bool = False
+    authority_revision: str = ""
 
-    def permitted(self, now_iso: str) -> bool:
+    def permitted(self, now_iso: str | None = None) -> bool:
         if not self.approval_required:
             return True
         if not self.approval_id:
             return False
-        return now_iso <= self.expires_at
+        now = _aware(now_iso) if now_iso is not None else datetime.now(timezone.utc)
+        exp = _aware(self.expires_at)
+        issued = _aware(self.issued_at)
+        if not now or not exp or not issued:
+            return False
+        return issued <= now < exp
 
 
 @dataclass

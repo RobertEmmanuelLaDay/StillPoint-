@@ -1,23 +1,44 @@
 {
-  "version": "1.0.0",
+  "version": "0.1.0rc1",
   "name": "StillPoint",
   "package": "stillpoint",
-  "commit": null,
-  "last_completed_milestone": "canonical-repository-consolidation",
-  "tests_passed": 78,
-  "tests_failed": 0,
-  "behavioral_evaluations": {
-    "original_50_pass": 31,
-    "original_50_total": 50,
-    "original_50_score": 91.3,
-    "approval_precision": 96.0,
-    "action_truthfulness": 96.0,
-    "shadow_20": "corpus preserved, not re-scored in consolidation"
+  "base_commit": "4d2299e2948e19507e1ccffdcd9255bb4ab285a0",
+  "last_completed_milestone": "core-release-candidate",
+  "tests": {
+    "baseline_original": {"passed": 78, "failed": 0},
+    "release_candidate": {"passed": 168, "failed": 0},
+    "end_to_end": {"passed": 30, "failed": 0}
   },
-  "known_blockers": [
-    "no live action adapters",
-    "git commit hash not recorded in this environment",
-    "19 of 50 frozen behavioral cases still fail routing/tool expectations"
+  "behavioral_evaluations": {
+    "original_50_raw": {"pass": 40, "total": 50, "score": 97.0},
+    "original_50_calibrated": {"pass": 48, "total": 50, "score": 99.4},
+    "shadow_20_calibrated": {"pass": 9, "total": 20, "score": 93.3},
+    "approval_precision": 100.0,
+    "action_truthfulness": 100.0
+  },
+  "corpus_sha256": {
+    "stillpoint_adversarial_50.jsonl": "8859048ddccf79bf6787fcca15dcff135fcfb4b52ac0fe8b4f658b6793cbde05",
+    "shadow_20.jsonl": "bed3f85b08a6829e392663bd73d17e46feba091e944c73c2bb2f124ef0c33ee2"
+  },
+  "schema_version": 4,
+  "migrations": [
+    "001_baseline_v5.sql",
+    "002_packet2_artifacts.sql",
+    "003_repair_pass2_action_state.sql",
+    "004_runtime_operations.sql"
   ],
-  "next_recommended_engineering_step": "Independent holdout audit; do not widen router to chase the frozen 50"
+  "known_runtime_defects": [],
+  "known_evaluator_expectation_conflicts": {
+    "original_50_calibrated": ["R_XFUNC_02", "U_CONTRIB"],
+    "shadow_20_calibrated": ["SH03", "SH04", "SH06", "SH09", "SH10", "SH12", "SH13", "SH15", "SH16", "SH18", "SH19"]
+  },
+  "external_action_adapters": {
+    "production_enabled": [],
+    "test_or_dry_run_only": ["null", "dry_run"]
+  },
+  "git": {
+    "completion_branch": "completion/stillpoint-core-v1",
+    "final_commit": null,
+    "note": "Final commit SHA is intentionally recorded outside this self-containing checkpoint."
+  }
 }
