@@ -5,14 +5,35 @@
   "base_commit": "4d2299e2948e19507e1ccffdcd9255bb4ab285a0",
   "last_completed_milestone": "core-release-candidate",
   "tests": {
-    "baseline_original": {"passed": 78, "failed": 0},
-    "release_candidate": {"passed": 168, "failed": 0},
-    "end_to_end": {"passed": 30, "failed": 0}
+    "baseline_original": {
+      "passed": 78,
+      "failed": 0
+    },
+    "release_candidate": {
+      "passed": 170,
+      "failed": 0
+    },
+    "end_to_end": {
+      "passed": 30,
+      "failed": 0
+    }
   },
   "behavioral_evaluations": {
-    "original_50_raw": {"pass": 40, "total": 50, "score": 97.0},
-    "original_50_calibrated": {"pass": 48, "total": 50, "score": 99.4},
-    "shadow_20_calibrated": {"pass": 9, "total": 20, "score": 93.3},
+    "original_50_raw": {
+      "pass": 40,
+      "total": 50,
+      "score": 97.0
+    },
+    "original_50_calibrated": {
+      "pass": 48,
+      "total": 50,
+      "score": 99.4
+    },
+    "shadow_20_calibrated": {
+      "pass": 9,
+      "total": 20,
+      "score": 93.3
+    },
     "approval_precision": 100.0,
     "action_truthfulness": 100.0
   },
@@ -29,16 +50,39 @@
   ],
   "known_runtime_defects": [],
   "known_evaluator_expectation_conflicts": {
-    "original_50_calibrated": ["R_XFUNC_02", "U_CONTRIB"],
-    "shadow_20_calibrated": ["SH03", "SH04", "SH06", "SH09", "SH10", "SH12", "SH13", "SH15", "SH16", "SH18", "SH19"]
+    "original_50_calibrated": [
+      "R_XFUNC_02",
+      "U_CONTRIB"
+    ],
+    "shadow_20_calibrated": [
+      "SH03",
+      "SH04",
+      "SH06",
+      "SH09",
+      "SH10",
+      "SH12",
+      "SH13",
+      "SH15",
+      "SH16",
+      "SH18",
+      "SH19"
+    ]
   },
   "external_action_adapters": {
     "production_enabled": [],
-    "test_or_dry_run_only": ["null", "dry_run"]
+    "test_or_dry_run_only": [
+      "null",
+      "dry_run"
+    ]
   },
   "git": {
     "completion_branch": "completion/stillpoint-core-v1",
     "final_commit": null,
     "note": "Final commit SHA is intentionally recorded outside this self-containing checkpoint."
+  },
+  "independent_audit_hardening": {
+    "action_result_exact_binding": "PASS",
+    "adapter_identity_registry_bound": "PASS",
+    "test_paths_checkout_local": "PASS"
   }
 }

@@ -6,7 +6,8 @@ from stillpoint.runtime import CompanyRuntime
 from stillpoint.providers_mock import MockProvider,ProviderResult
 from stillpoint.attachments import select_attachment_context
 
-CFG=Path('/mnt/data/stillpoint-chat/config_agents.json')
+ROOT=Path(__file__).resolve().parents[1]
+CFG=ROOT/'config'/'agents.json'
 def make_rt(root,provider=None):
     return CompanyRuntime(root=root,db=CompanyDB(root/'db.sqlite'),registry=AgentRegistry(CFG),provider=provider or MockProvider(),default_model='mock',smart_routing=False)
 

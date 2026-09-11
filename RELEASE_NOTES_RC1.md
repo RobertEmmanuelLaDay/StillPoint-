@@ -9,3 +9,5 @@ Key earned changes include unified deterministic + optional semantic authority, 
 No live production email, publication, payment, signing, deletion, or destructive adapter is enabled. No real-world consequential action was executed during this build.
 
 The frozen evaluator still contains expectation conflicts. They remain frozen and are classified rather than edited. See `eval/FAILURE_CLASSIFICATION.md` and `eval/failure_classification.json`.
+
+Independent post-build audit hardening: action adapters must return an `ActionResult` bound to the exact requested action, persisted adapter identity is taken from the registry-selected executor rather than a self-reported result label, and regression tests no longer depend on environment-specific absolute paths. The complete release-candidate suite is 170/170.

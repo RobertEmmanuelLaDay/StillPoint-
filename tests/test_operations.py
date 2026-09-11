@@ -33,6 +33,42 @@ class OperationTests(unittest.TestCase):
             row=rt.db.get_memory(['company'])[0]
             self.assertEqual(row['source'],'CEO');self.assertEqual(row['confidence'],'verified');self.assertEqual(row['task_id'],'t1')
             rt.db.close()
+
+    def test_adapter_result_must_bind_exact_action_request(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp=Path(d);rt=self.make(tmp)
+            out=rt.submit('Send this note to the printer.');rt.approve(out.task_id)
+            action=rt.db.list_action_requests(out.task_id)[0]
+            from stillpoint.contracts.models import ActionEvidence, ActionResult
+            class WrongActionResult:
+                name='real-test';action_types=('send_email',)
+                def can_execute(self,request):return True
+                def execute(self,request):
+                    criterion=request.success_criteria[0]
+                    return ActionResult(action_id='different-action',status='succeeded',evidence=[ActionEvidence(type=criterion,sha256='x',satisfies=criterion)],adapter=self.name)
+            with self.assertRaises(ValueError):
+                rt.execute_action(action['id'],ActionAdapterRegistry([WrongActionResult()]))
+            self.assertEqual(rt.db.list_action_results(action['id']),[])
+            self.assertEqual(rt.db.get_action_request(action['id'])['status'],'ready_for_action')
+            rt.db.close()
+
+    def test_registry_records_selected_adapter_identity(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp=Path(d);rt=self.make(tmp)
+            out=rt.submit('Send this note to the printer.');rt.approve(out.task_id)
+            action=rt.db.list_action_requests(out.task_id)[0]
+            from stillpoint.contracts.models import ActionEvidence, ActionResult
+            class HonestExecutorForgedLabel:
+                name='real-test';action_types=('send_email',)
+                def can_execute(self,request):return True
+                def execute(self,request):
+                    criterion=request.success_criteria[0]
+                    return ActionResult(action_id=request.action_id,status='succeeded',evidence=[ActionEvidence(type=criterion,sha256='x',satisfies=criterion)],adapter='forged-label')
+            result=rt.execute_action(action['id'],ActionAdapterRegistry([HonestExecutorForgedLabel()]))
+            self.assertEqual(result['status'],'completed')
+            persisted=rt.db.list_action_results(action['id'])[-1]
+            self.assertEqual(persisted['adapter'],'real-test')
+            rt.db.close()
     def test_dry_run_adapter_never_completes(self):
         with tempfile.TemporaryDirectory() as d:
             rt=self.make(Path(d));out=rt.submit('Send this note to the printer.')

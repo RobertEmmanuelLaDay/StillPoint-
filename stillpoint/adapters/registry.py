@@ -17,7 +17,17 @@ class ActionAdapterRegistry:
             if request.action_type in getattr(adapter,"action_types",()) and adapter.can_execute(request): return adapter
         return NullActionAdapter()
     def execute(self, request: ActionRequest) -> ActionResult:
-        return self.resolve(request).execute(request)
+        adapter = self.resolve(request)
+        result = adapter.execute(request)
+        if not isinstance(result, ActionResult):
+            raise TypeError("action adapter must return ActionResult")
+        if result.action_id != request.action_id:
+            raise ValueError("action result does not match the requested action")
+        # Adapter identity comes from the registry-selected executor, not from a
+        # self-reported string in the result object. This keeps the audit trail
+        # bound to the component that was actually dispatched.
+        result.adapter = adapter.name
+        return result
 
 
 class DryRunActionAdapter:
