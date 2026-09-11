@@ -10,4 +10,6 @@ No live production email, publication, payment, signing, deletion, or destructiv
 
 The frozen evaluator still contains expectation conflicts. They remain frozen and are classified rather than edited. See `eval/FAILURE_CLASSIFICATION.md` and `eval/failure_classification.json`.
 
-Independent post-build audit hardening: action adapters must return an `ActionResult` bound to the exact requested action, persisted adapter identity is taken from the registry-selected executor rather than a self-reported result label, and regression tests no longer depend on environment-specific absolute paths. The complete release-candidate suite is 170/170.
+Independent post-build audit hardening: action adapters must return an `ActionResult` bound to the exact requested action, persisted adapter identity is taken from the registry-selected executor rather than a self-reported result label, and regression tests no longer depend on environment-specific absolute paths. The complete release-candidate suite is 171/171.
+
+Wheel-install audit: `stillpoint doctor` now distinguishes source-checkout corpus verification from runtime-only wheel installations. Source checkouts still verify the frozen corpora cryptographically; installed wheels report evaluator assets as unavailable rather than falsely failing runtime health.

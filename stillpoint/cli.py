@@ -65,15 +65,23 @@ def cmd_doctor(rt: CompanyRuntime, root: Path) -> int:
     managed=rt.managed_files
     try: managed.mkdir(parents=True,exist_ok=True);checks["managed_storage"]={"ok":os.access(managed,os.W_OK),"path":str(managed)}
     except Exception as exc: checks["managed_storage"]={"ok":False,"error":str(exc)}
-    try:
-        import hashlib
-        hashes=json.loads((root/"eval"/"corpus_hashes.json").read_text())
-        actual={}
-        ok=True
-        for name,expected in hashes.items():
-            got=hashlib.sha256((root/"eval"/name).read_bytes()).hexdigest();actual[name]=got;ok &= got==expected
-        checks["corpus_integrity"]={"ok":bool(ok),"hashes":actual}
-    except Exception as exc: checks["corpus_integrity"]={"ok":False,"error":str(exc)}
+    corpus_manifest = root / "eval" / "corpus_hashes.json"
+    if corpus_manifest.is_file():
+        try:
+            import hashlib
+            hashes=json.loads(corpus_manifest.read_text())
+            actual={}
+            ok=True
+            for name,expected in hashes.items():
+                got=hashlib.sha256((root/"eval"/name).read_bytes()).hexdigest();actual[name]=got;ok &= got==expected
+            checks["corpus_integrity"]={"ok":bool(ok),"available":True,"hashes":actual}
+        except Exception as exc:
+            checks["corpus_integrity"]={"ok":False,"available":True,"error":str(exc)}
+    else:
+        # Evaluator corpora are release-development assets, not runtime state.
+        # A wheel installation remains healthy without them; source checkouts
+        # verify the immutable corpus whenever the manifest is present.
+        checks["corpus_integrity"]={"ok":True,"available":False,"note":"evaluator assets not installed"}
     provider=os.getenv("STILLPOINT_PROVIDER","mock")
     checks["provider"]={"ok":provider=="mock" or bool(os.getenv("XAI_API_KEY")),"name":provider,"live_credentials_present":bool(os.getenv("XAI_API_KEY")) if provider=="xai" else None}
     checks["overall_ok"]=all(v.get("ok",False) for k,v in checks.items() if isinstance(v,dict))

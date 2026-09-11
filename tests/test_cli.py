@@ -16,6 +16,16 @@ class CLITests(unittest.TestCase):
         env=os.environ.copy();env['STILLPOINT_ROOT']=str(ROOT);env['PYTHONPATH']=str(ROOT)
         p=subprocess.run([sys.executable,'-m','stillpoint.cli','doctor'],cwd=ROOT,env=env,text=True,capture_output=True)
         self.assertEqual(p.returncode,0,p.stderr+p.stdout);self.assertIn('corpus_integrity',p.stdout)
+    def test_doctor_runtime_only_install_does_not_require_eval_assets(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            tmp=Path(d)
+            p=self.run_cli(tmp,'doctor')
+            self.assertEqual(p.returncode,0,p.stderr+p.stdout)
+            data=json.loads(p.stdout)
+            self.assertTrue(data['corpus_integrity']['ok'])
+            self.assertFalse(data['corpus_integrity']['available'])
+
     def test_submit_and_status(self):
         with tempfile.TemporaryDirectory() as d:
             tmp=Path(d);(tmp/'config').mkdir();(tmp/'config'/'agents.json').write_text((ROOT/'config'/'agents.json').read_text())
