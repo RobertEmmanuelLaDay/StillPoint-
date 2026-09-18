@@ -36,6 +36,16 @@ def _runtime(root: Path, provider_name: str = "mock") -> CompanyRuntime:
 def _json(value):
     print(json.dumps(value, indent=2, default=str, ensure_ascii=False))
 
+def _json_value(value):
+    try:return json.loads(value)
+    except json.JSONDecodeError as exc:raise argparse.ArgumentTypeError(f"invalid JSON: {exc}") from exc
+
+def _link_value(value):
+    parts=value.split(":",1)
+    if len(parts)!=2 or not parts[0] or not parts[1]:
+        raise argparse.ArgumentTypeError("link must be CLAIM_ID:RELATION")
+    return {"claim_id":parts[0],"relation":parts[1]}
+
 
 def cmd_status(rt: CompanyRuntime) -> None:
     rows=rt.db.list_tasks(50)
@@ -62,6 +72,11 @@ def cmd_doctor(rt: CompanyRuntime, root: Path) -> int:
     except Exception as exc: checks["database"]={"ok":False,"error":str(exc)}
     try: checks["agent_registry"]={"ok":True,"agents":rt.registry.ids()}
     except Exception as exc: checks["agent_registry"]={"ok":False,"error":str(exc)}
+    try:
+        required={"temporal_claims","temporal_evidence","temporal_warrants","temporal_warrant_events","temporal_evaluations"}
+        found={row[0] for row in rt.db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        missing=sorted(required-found);checks["temporal_authority"]={"ok":not missing,"missing":missing}
+    except Exception as exc:checks["temporal_authority"]={"ok":False,"error":str(exc)}
     managed=rt.managed_files
     try: managed.mkdir(parents=True,exist_ok=True);checks["managed_storage"]={"ok":os.access(managed,os.W_OK),"path":str(managed)}
     except Exception as exc: checks["managed_storage"]={"ok":False,"error":str(exc)}
@@ -105,6 +120,21 @@ def main(argv=None) -> int:
     actions=sub.add_parser("actions");actions.add_argument("task_id",nargs="?")
     artifacts=sub.add_parser("artifacts");artifacts.add_argument("task_id")
     sub.add_parser("approvals")
+    temporal=sub.add_parser("temporal")
+    ts=temporal.add_subparsers(dest="temporal_cmd",required=True)
+    claims=ts.add_parser("claims");claims.add_argument("--subject");claims.add_argument("--domain")
+    claim=ts.add_parser("claim");claim.add_argument("claim_id")
+    ca=ts.add_parser("claim-add");ca.add_argument("subject");ca.add_argument("predicate");ca.add_argument("domain");ca.add_argument("source");ca.add_argument("value",type=_json_value);ca.add_argument("--truth-state",default="unknown");ca.add_argument("--kind",default="assertion");ca.add_argument("--subject-mode",default="unspecified");ca.add_argument("--confidence",type=float);ca.add_argument("--expires-at");ca.add_argument("--supersedes")
+    evidence=ts.add_parser("evidence");evidence.add_argument("--subject");evidence.add_argument("--domain")
+    ea=ts.add_parser("evidence-add");ea.add_argument("subject");ea.add_argument("domain");ea.add_argument("source");ea.add_argument("payload",type=_json_value);ea.add_argument("--observed-at");ea.add_argument("--link",action="append",type=_link_value,default=[])
+    warrants=ts.add_parser("warrants");warrants.add_argument("--subject");warrants.add_argument("--domain")
+    warrant=ts.add_parser("warrant");warrant.add_argument("warrant_id")
+    revoke=ts.add_parser("warrant-revoke");revoke.add_argument("warrant_id");revoke.add_argument("--reason",default="")
+    release=ts.add_parser("warrant-release");release.add_argument("warrant_id");release.add_argument("--reason",default="")
+    bind=ts.add_parser("action-bind-claims");bind.add_argument("action_id");bind.add_argument("claim_ids",nargs="+");bind.add_argument("--bridge",default="");bind.add_argument("--basis",default="operator-bound current evidence")
+    reentries=ts.add_parser("reentries");reentries.add_argument("--subject")
+    ro=ts.add_parser("reentry-open");ro.add_argument("subject");ro.add_argument("domain");ro.add_argument("reason");ro.add_argument("--prior-warrant");ro.add_argument("--evidence")
+    rr=ts.add_parser("reentry-resolve");rr.add_argument("evaluation_id");rr.add_argument("disposition");rr.add_argument("rationale");rr.add_argument("--new-warrant")
     sub.add_parser("doctor")
     args=parser.parse_args(argv)
     root=_root();rt=_runtime(root,args.provider)
@@ -122,7 +152,9 @@ def main(argv=None) -> int:
         elif args.cmd=="task":
             task=rt.db.get_task(args.task_id)
             if not task:raise KeyError(args.task_id)
-            task["runs"]=rt.db.list_runs(args.task_id);task["artifacts"]=rt.db.list_artifacts(args.task_id);task["actions"]=rt.db.list_action_requests(args.task_id);task["usage"]=rt.db.get_task_usage(args.task_id);_json(task)
+            task["runs"]=rt.db.list_runs(args.task_id);task["artifacts"]=rt.db.list_artifacts(args.task_id);task["actions"]=rt.db.list_action_requests(args.task_id);task["usage"]=rt.db.get_task_usage(args.task_id)
+            for action in task["actions"]:action["temporal_warrants"]=rt.temporal.list_action_warrants(action["id"])
+            _json(task)
         elif args.cmd=="actions":
             rows=[]
             tasks=[rt.db.get_task(args.task_id)] if args.task_id else rt.db.list_tasks(100)
@@ -131,6 +163,24 @@ def main(argv=None) -> int:
             _json(rows)
         elif args.cmd=="artifacts":_json(rt.db.list_artifacts(args.task_id))
         elif args.cmd=="approvals":_json([t for t in rt.db.list_tasks(100) if t["status"]=="waiting_approval"])
+        elif args.cmd=="temporal":
+            tc=args.temporal_cmd
+            if tc=="claims":_json(rt.temporal.list_claims(subject=args.subject,domain=args.domain))
+            elif tc=="claim":_json(rt.temporal.get_claim(args.claim_id))
+            elif tc=="claim-add":
+                claim_id=rt.temporal.record_claim(subject=args.subject,predicate=args.predicate,value=args.value,domain=args.domain,source=args.source,truth_state=args.truth_state,claim_kind=args.kind,subject_mode=args.subject_mode,confidence=args.confidence,expires_at=args.expires_at,supersedes_claim_id=args.supersedes)
+                _json(rt.temporal.get_claim(claim_id))
+            elif tc=="evidence":_json(rt.temporal.list_evidence(subject=args.subject,domain=args.domain))
+            elif tc=="evidence-add":_json(rt.ingest_evidence(subject=args.subject,domain=args.domain,source=args.source,payload=args.payload,links=args.link,observed_at=args.observed_at))
+            elif tc=="warrants":_json(rt.temporal.list_warrants(subject=args.subject,domain=args.domain))
+            elif tc=="warrant":
+                row=rt.temporal.get_warrant(args.warrant_id);row["events"]=rt.temporal.list_warrant_events(args.warrant_id);_json(row)
+            elif tc=="warrant-revoke":rt.temporal.revoke_warrant(args.warrant_id,args.reason);_json(rt.temporal.get_warrant(args.warrant_id))
+            elif tc=="warrant-release":rt.temporal.release_warrant(args.warrant_id,args.reason);_json(rt.temporal.get_warrant(args.warrant_id))
+            elif tc=="action-bind-claims":_json(rt.bind_action_claims(args.action_id,args.claim_ids,bridge=args.bridge,basis=args.basis))
+            elif tc=="reentries":_json(rt.temporal.list_reentries(subject=args.subject))
+            elif tc=="reentry-open":_json({"evaluation_id":rt.temporal.open_reentry(subject=args.subject,domain=args.domain,reason=args.reason,prior_warrant_id=args.prior_warrant,trigger_evidence_id=args.evidence)})
+            elif tc=="reentry-resolve":rt.temporal.resolve_reentry(args.evaluation_id,disposition=args.disposition,rationale=args.rationale,new_warrant_id=args.new_warrant);_json([r for r in rt.temporal.list_reentries() if r["id"]==args.evaluation_id][0])
         elif args.cmd=="doctor":return cmd_doctor(rt,root)
         return 0
     finally:rt.db.close()

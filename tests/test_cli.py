@@ -45,4 +45,20 @@ class CLITests(unittest.TestCase):
             self.assertEqual(p.returncode,0,p.stderr);self.assertIn('completed',p.stdout)
             s=self.run_cli(tmp,'status');self.assertIn('RECENTLY COMPLETED',s.stdout)
 
+
+    def test_temporal_cli_claim_evidence_and_inspection(self):
+        import json
+        with tempfile.TemporaryDirectory() as d:
+            tmp=Path(d);(tmp/'config').mkdir();(tmp/'config'/'agents.json').write_text((ROOT/'config'/'agents.json').read_text())
+            created=self.run_cli(tmp,'temporal','claim-add','person:1','eligible','benefits','caseworker','true','--truth-state','supported','--subject-mode','dynamic')
+            self.assertEqual(created.returncode,0,created.stderr+created.stdout)
+            claim=json.loads(created.stdout);claim_id=claim['id']
+            listed=self.run_cli(tmp,'temporal','claims','--subject','person:1')
+            self.assertEqual(listed.returncode,0,listed.stderr);self.assertEqual(json.loads(listed.stdout)[0]['id'],claim_id)
+            evidence=self.run_cli(tmp,'temporal','evidence-add','person:1','benefits','new-record','{"eligible": false}','--link',f'{claim_id}:contradicts')
+            self.assertEqual(evidence.returncode,0,evidence.stderr+evidence.stdout)
+            result=json.loads(evidence.stdout);self.assertTrue(result['evidence_id'])
+            rows=self.run_cli(tmp,'temporal','evidence','--subject','person:1')
+            self.assertEqual(rows.returncode,0,rows.stderr);self.assertEqual(len(json.loads(rows.stdout)),1)
+
 if __name__=='__main__':unittest.main()
