@@ -328,10 +328,110 @@ class TemporalAuthorityTests(unittest.TestCase):
             self.assertEqual(rt.db.get_task(out.task_id)["status"], "ready_for_action")
             rt.db.close()
 
-    def test_schema_version_five_contains_temporal_tables(self):
+
+    def test_terminal_runtime_warrant_is_not_silently_reissued(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt = make_runtime(Path(d))
+            out = rt.submit("Send this note to the printer.")
+            action = rt.db.list_action_requests(out.task_id)[0]
+            warrant = rt.temporal.list_action_warrants(action["id"])[0]
+            rt.temporal.revoke_warrant(warrant["id"], "changed conditions")
+            returned = rt.temporal.ensure_runtime_warrant(
+                action_id=action["id"], task_id=out.task_id, action_type=action["action_type"],
+                target=action["target"], scope=__import__("json").loads(action["scope_json"]),
+                authority_revision=action["authority_revision"], issued_at=action["issued_at"],
+                expires_at=action["expires_at"],
+            )
+            self.assertEqual(returned, warrant["id"])
+            self.assertEqual(len(rt.temporal.list_action_warrants(action["id"])), 1)
+            rt.db.close()
+
+    def test_supporting_claim_expiry_blocks_warrant_at_use_time(self):
         with tempfile.TemporaryDirectory() as d:
             db = CompanyDB(Path(d) / "db.sqlite")
-            self.assertEqual(db.schema_version, 5)
+            ledger = TemporalAuthorityLedger(db)
+            claim = ledger.record_claim(
+                subject="x", predicate="eligible", value=True, domain="d", source="record",
+                truth_state="supported", expires_at="2026-01-02T00:00:00+00:00"
+            )
+            warrant = ledger.issue_warrant(
+                subject="x", domain="d", authorized_actions=["act"], scope=["x"],
+                basis_type="policy", basis="rule", issued_by="reviewer", claim_ids=[claim],
+                issued_at="2026-01-01T00:00:00+00:00"
+            )
+            self.assertFalse(ledger.warrant_authorizes(
+                warrant, action_type="act", domain="d", scope=["x"],
+                now_iso="2026-01-03T00:00:00+00:00"
+            ))
+            self.assertEqual(ledger.get_warrant(warrant)["status"], "review_required")
+            db.close()
+
+    def test_evidence_cannot_silently_cross_domains(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            ledger = TemporalAuthorityLedger(db)
+            claim = ledger.record_claim(
+                subject="x", predicate="diagnosis", value="y", domain="medical",
+                source="doctor", truth_state="supported"
+            )
+            ev = ledger.record_evidence(
+                subject="x", domain="employment", source="manager", payload={"fact": "z"}
+            )
+            with self.assertRaises(ValueError):
+                ledger.link_evidence(claim, ev, "supports")
+            db.close()
+
+    def test_category_confidence_and_repeated_predictions_do_not_mint_warrants(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            ledger = TemporalAuthorityLedger(db)
+            for i in range(5):
+                ledger.record_claim(
+                    subject="x", predicate=f"risk:{i}", value=0.999999, domain="risk",
+                    source="model", confidence=0.999999, truth_state="supported", claim_kind="prediction"
+                )
+            with self.assertRaises(ValueError):
+                ledger.issue_warrant(
+                    subject="x", domain="risk", authorized_actions=["restrain"], scope=["x"],
+                    basis_type="classification", basis="category membership", issued_by="model"
+                )
+            self.assertEqual(ledger.list_warrants(subject="x"), [])
+            db.close()
+
+    def test_privileged_identity_does_not_bypass_warrant_state(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            ledger = TemporalAuthorityLedger(db)
+            for issuer in ("administrator", "provider:xai", "Robert Emmanuel LaDay"):
+                warrant = ledger.issue_warrant(
+                    subject=issuer, domain="d", authorized_actions=["act"], scope=[issuer],
+                    basis_type="delegation", basis="bounded delegation", issued_by=issuer
+                )
+                ledger.revoke_warrant(warrant, "revoked")
+                self.assertFalse(ledger.warrant_authorizes(
+                    warrant, action_type="act", domain="d", scope=[issuer]
+                ))
+            db.close()
+
+    def test_release_transition_keeps_terminal_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            ledger = TemporalAuthorityLedger(db)
+            warrant = ledger.issue_warrant(
+                subject="x", domain="d", authorized_actions=["act"], scope=["x"],
+                basis_type="policy", basis="rule", issued_by="reviewer"
+            )
+            ledger.complete_warrant(warrant)
+            ledger.release_warrant(warrant, "authority released")
+            transitions = [(r["from_status"], r["to_status"]) for r in ledger.list_warrant_events(warrant)]
+            self.assertIn(("active", "completed"), transitions)
+            self.assertIn(("completed", "released"), transitions)
+            db.close()
+
+    def test_schema_version_six_contains_temporal_tables(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            self.assertEqual(db.schema_version, 6)
             tables = {r[0] for r in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             for name in {
                 "temporal_claims", "temporal_evidence", "temporal_claim_evidence",

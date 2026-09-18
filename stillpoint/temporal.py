@@ -108,8 +108,8 @@ class TemporalAuthorityLedger:
                 prior = conn.execute("SELECT * FROM temporal_claims WHERE id=?", (supersedes_claim_id,)).fetchone()
                 if not prior:
                     raise KeyError(supersedes_claim_id)
-                if prior["subject"] != subject or prior["domain"] != domain:
-                    raise ValueError("superseding claim must remain in the same subject and domain")
+                if prior["subject"] != subject or prior["domain"] != domain or prior["predicate"] != predicate:
+                    raise ValueError("superseding claim must remain on the same subject, domain, and predicate")
                 conn.execute(
                     "UPDATE temporal_claims SET status='superseded',updated_at=? WHERE id=?",
                     (_now(), supersedes_claim_id),
@@ -216,6 +216,8 @@ class TemporalAuthorityLedger:
             raise KeyError(evidence_id)
         if claim["subject"] != evidence["subject"]:
             raise ValueError("evidence subject does not match claim subject")
+        if claim["domain"] != evidence["domain"]:
+            raise ValueError("evidence domain does not match claim domain")
         self.conn.execute(
             "INSERT OR REPLACE INTO temporal_claim_evidence(claim_id,evidence_id,relation,note,created_at) VALUES(?,?,?,?,?)",
             (claim_id, evidence_id, relation, note, _now()),
@@ -287,9 +289,14 @@ class TemporalAuthorityLedger:
                 prior = conn.execute("SELECT id FROM temporal_warrants WHERE id=?", (supersedes_warrant_id,)).fetchone()
                 if not prior:
                     raise KeyError(supersedes_warrant_id)
+                at = _now()
                 conn.execute(
                     "UPDATE temporal_warrants SET status='superseded',updated_at=? WHERE id=?",
-                    (_now(), supersedes_warrant_id),
+                    (at, supersedes_warrant_id),
+                )
+                conn.execute(
+                    "INSERT INTO temporal_warrant_events(id,warrant_id,from_status,to_status,reason,created_at) VALUES(?,?,?,?,?,?)",
+                    (uuid.uuid4().hex[:20], supersedes_warrant_id, "active", "superseded", "superseded by new warrant", at),
                 )
             conn.execute(
                 """INSERT INTO temporal_warrants
@@ -320,6 +327,10 @@ class TemporalAuthorityLedger:
                     _now(),
                 ),
             )
+            conn.execute(
+                "INSERT INTO temporal_warrant_events(id,warrant_id,from_status,to_status,reason,created_at) VALUES(?,?,?,?,?,?)",
+                (uuid.uuid4().hex[:20], warrant_id, "", "active", "warrant issued", _now()),
+            )
             conn.commit()
         except Exception:
             conn.rollback()
@@ -334,11 +345,7 @@ class TemporalAuthorityLedger:
         now = _aware(now_iso or _now())
         expires = _aware(data.get("expires_at"))
         if data["status"] in {"active", "review_required"} and now and expires and now >= expires:
-            self.conn.execute(
-                "UPDATE temporal_warrants SET status='expired',updated_at=? WHERE id=?",
-                (_now(), warrant_id),
-            )
-            self.conn.commit()
+            self._transition_warrant(warrant_id, "expired", "warrant expired")
             data["status"] = "expired"
         return data
 
@@ -391,6 +398,11 @@ class TemporalAuthorityLedger:
             return False
         if warrant["domain"] != domain:
             return False
+        for claim_id in _load(warrant["claim_ids_json"], []):
+            claim = self._refresh_claim(claim_id, now_iso)
+            if claim["status"] not in {"current", "historical"}:
+                self._transition_warrant(warrant_id, "review_required", f"supporting claim {claim_id} is no longer current")
+                return False
         if action_type not in _load(warrant["authorized_actions_json"], []):
             return False
         allowed_scope = set(_load(warrant["scope_json"], []))
@@ -430,10 +442,9 @@ class TemporalAuthorityLedger:
         bindings = self.list_action_warrants(action_id)
         for warrant in reversed(bindings):
             provenance = _load(warrant.get("provenance_json"), {})
-            if (
-                provenance.get("authority_revision") == authority_revision
-                and warrant["status"] in {"active", "review_required"}
-            ):
+            if provenance.get("authority_revision") == authority_revision:
+                # A terminal warrant is a receipt, not permission to mint the same authority again.
+                # A new authority revision must create a new action/warrant cycle.
                 return warrant["id"]
         warrant_id = self.issue_warrant(
             subject=target,
@@ -457,20 +468,12 @@ class TemporalAuthorityLedger:
             "SELECT id,claim_ids_json,status FROM temporal_warrants WHERE status='active'"
         ).fetchall():
             if claim_id in _load(row["claim_ids_json"], []):
-                self.conn.execute(
-                    "UPDATE temporal_warrants SET status='review_required',review_reason=?,updated_at=? WHERE id=?",
-                    (reason, _now(), row["id"]),
-                )
-        self.conn.commit()
+                self._transition_warrant(row["id"], "review_required", reason)
 
     def mark_action_warrants_review_required(self, action_id: str, *, reason: str) -> None:
         for warrant in self.list_action_warrants(action_id):
             if warrant["status"] == "active":
-                self.conn.execute(
-                    "UPDATE temporal_warrants SET status='review_required',review_reason=?,updated_at=? WHERE id=?",
-                    (reason, _now(), warrant["id"]),
-                )
-        self.conn.commit()
+                self._transition_warrant(warrant["id"], "review_required", reason)
 
     def revoke_warrant(self, warrant_id: str, reason: str = "") -> None:
         self._end_warrant(warrant_id, "revoked", reason)
@@ -483,17 +486,39 @@ class TemporalAuthorityLedger:
             if warrant["status"] == "active":
                 self.complete_warrant(warrant["id"])
 
+    def _transition_warrant(self, warrant_id: str, status: str, reason: str = "") -> None:
+        if status not in WARRANT_STATUSES:
+            raise ValueError(status)
+        row = self.conn.execute("SELECT status FROM temporal_warrants WHERE id=?", (warrant_id,)).fetchone()
+        if not row:
+            raise KeyError(warrant_id)
+        prior = row["status"]
+        if prior == status:
+            return
+        at = _now()
+        self.conn.execute(
+            "UPDATE temporal_warrants SET status=?,review_reason=?,updated_at=? WHERE id=?",
+            (status, reason, at, warrant_id),
+        )
+        self.conn.execute(
+            "INSERT INTO temporal_warrant_events(id,warrant_id,from_status,to_status,reason,created_at) VALUES(?,?,?,?,?,?)",
+            (uuid.uuid4().hex[:20], warrant_id, prior, status, reason, at),
+        )
+        self.conn.commit()
+
+    def list_warrant_events(self, warrant_id: str) -> list[dict[str, Any]]:
+        rows = self.conn.execute(
+            "SELECT * FROM temporal_warrant_events WHERE warrant_id=? ORDER BY created_at,id", (warrant_id,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def _end_warrant(self, warrant_id: str, status: str, reason: str) -> None:
         if status not in {"revoked", "completed", "superseded"}:
             raise ValueError(status)
         warrant = self.get_warrant(warrant_id)
         if warrant["status"] not in {"active", "review_required"}:
             return
-        self.conn.execute(
-            "UPDATE temporal_warrants SET status=?,review_reason=?,updated_at=? WHERE id=?",
-            (status, reason, _now(), warrant_id),
-        )
-        self.conn.commit()
+        self._transition_warrant(warrant_id, status, reason)
 
     def release_warrant(self, warrant_id: str, reason: str = "") -> None:
         warrant = self.get_warrant(warrant_id)
@@ -501,11 +526,7 @@ class TemporalAuthorityLedger:
             raise ValueError("active authority must complete, expire, revoke, or be superseded before release")
         if warrant["status"] == "released":
             return
-        self.conn.execute(
-            "UPDATE temporal_warrants SET status='released',review_reason=?,updated_at=? WHERE id=?",
-            (reason, _now(), warrant_id),
-        )
-        self.conn.commit()
+        self._transition_warrant(warrant_id, "released", reason)
 
     def open_reentry(
         self,
