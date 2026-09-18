@@ -205,7 +205,7 @@ class TemporalAuthorityLedger:
         self.conn.commit()
         return evidence_id
 
-    def link_evidence(self, claim_id: str, evidence_id: str, relation: str, note: str = "") -> None:
+    def link_evidence(self, claim_id: str, evidence_id: str, relation: str, note: str = "") -> list[str]:
         if relation not in EVIDENCE_RELATIONS:
             raise ValueError(f"invalid evidence relation: {relation}")
         claim = self.conn.execute("SELECT * FROM temporal_claims WHERE id=?", (claim_id,)).fetchone()
@@ -223,8 +223,15 @@ class TemporalAuthorityLedger:
             (claim_id, evidence_id, relation, note, _now()),
         )
         self.conn.commit()
+        affected=[]
         if relation in {"weakens", "contradicts", "supersedes"}:
-            self._mark_claim_warrants_review(claim_id, f"new evidence {relation} supporting claim")
+            affected=self._mark_claim_warrants_review(claim_id, f"new evidence {relation} supporting claim")
+        return affected
+
+    def get_evidence(self, evidence_id: str) -> dict[str, Any]:
+        row=self.conn.execute("SELECT * FROM temporal_evidence WHERE id=?", (evidence_id,)).fetchone()
+        if not row:raise KeyError(evidence_id)
+        return dict(row)
 
     def list_evidence(self, *, subject: str | None = None, domain: str | None = None) -> list[dict[str, Any]]:
         sql = "SELECT * FROM temporal_evidence WHERE 1=1"
@@ -481,12 +488,135 @@ class TemporalAuthorityLedger:
         self.bind_action_warrant(action_id, warrant_id)
         return warrant_id
 
-    def _mark_claim_warrants_review(self, claim_id: str, reason: str) -> None:
+    def warrant_ids_for_claim(self, claim_id: str, *, statuses: set[str] | None = None) -> list[str]:
+        rows=self.conn.execute("SELECT id,claim_ids_json,status FROM temporal_warrants ORDER BY created_at,id").fetchall()
+        out=[]
+        for row in rows:
+            if claim_id in _load(row["claim_ids_json"], []) and (statuses is None or row["status"] in statuses):
+                out.append(row["id"])
+        return out
+
+    def action_ids_for_warrants(self, warrant_ids: list[str]) -> list[str]:
+        if not warrant_ids:return []
+        placeholders=",".join("?" for _ in warrant_ids)
+        rows=self.conn.execute(
+            f"SELECT DISTINCT action_id FROM temporal_action_warrants WHERE warrant_id IN ({placeholders}) ORDER BY action_id",
+            warrant_ids,
+        ).fetchall()
+        return [str(row["action_id"]) for row in rows]
+
+    def action_ids_for_claim(self, claim_id: str, *, statuses: set[str] | None = None) -> list[str]:
+        return self.action_ids_for_warrants(self.warrant_ids_for_claim(claim_id,statuses=statuses))
+
+    def _mark_claim_warrants_review(self, claim_id: str, reason: str) -> list[str]:
+        affected=[]
         for row in self.conn.execute(
             "SELECT id,claim_ids_json,status FROM temporal_warrants WHERE status='active'"
         ).fetchall():
             if claim_id in _load(row["claim_ids_json"], []):
                 self._transition_warrant(row["id"], "review_required", reason)
+                affected.append(str(row["id"]))
+        return affected
+
+    def _open_dynamic_terminal_reentries(self, claim_id: str, evidence_id: str, relation: str) -> list[str]:
+        claim=self.get_claim(claim_id)
+        if claim["subject_mode"]!="dynamic" or relation not in {"weakens","contradicts","supersedes"}:
+            return []
+        terminal={"completed","released","superseded"}
+        opened=[]
+        for warrant_id in self.warrant_ids_for_claim(claim_id,statuses=terminal):
+            exists=self.conn.execute(
+                "SELECT id FROM temporal_evaluations WHERE prior_warrant_id=? AND trigger_evidence_id=? AND status='open'",
+                (warrant_id,evidence_id),
+            ).fetchone()
+            if exists:
+                opened.append(str(exists["id"]));continue
+            opened.append(self.open_reentry(
+                subject=claim["subject"],domain=claim["domain"],
+                reason=f"dynamic subject received material evidence: {relation}",
+                prior_warrant_id=warrant_id,trigger_evidence_id=evidence_id,
+            ))
+        return opened
+
+    def ingest_evidence(
+        self,
+        *,
+        subject: str,
+        domain: str,
+        source: str,
+        payload: Any,
+        links: list[dict[str, str]] | None = None,
+        observed_at: str | None = None,
+        provenance: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        evidence_id=self.record_evidence(
+            subject=subject,domain=domain,source=source,payload=payload,
+            observed_at=observed_at,provenance=provenance,
+        )
+        review_warrants=[]
+        reentries=[]
+        for link in links or []:
+            claim_id=str(link.get("claim_id") or "")
+            relation=str(link.get("relation") or "")
+            note=str(link.get("note") or "")
+            if not claim_id or not relation:
+                raise ValueError("evidence links require claim_id and relation")
+            review_warrants.extend(self.link_evidence(claim_id,evidence_id,relation,note))
+            reentries.extend(self._open_dynamic_terminal_reentries(claim_id,evidence_id,relation))
+        review_warrants=list(dict.fromkeys(review_warrants))
+        reentries=list(dict.fromkeys(reentries))
+        return {
+            "evidence_id":evidence_id,
+            "review_warrant_ids":review_warrants,
+            "review_action_ids":self.action_ids_for_warrants(review_warrants),
+            "reentry_ids":reentries,
+        }
+
+    def attach_claims_to_action_warrant(
+        self,
+        action_id: str,
+        claim_ids: list[str],
+        *,
+        claim_bridge: str = "",
+        basis: str = "operator-bound current evidence",
+        issued_by: str = "stillpoint-operator",
+    ) -> str:
+        action=self.conn.execute("SELECT * FROM action_requests WHERE id=?", (action_id,)).fetchone()
+        if not action:raise KeyError(action_id)
+        if action["status"] in {"completed","stale","failed"}:
+            raise ValueError(f"cannot rebind terminal action status={action['status']}")
+        side_effect=self.conn.execute(
+            "SELECT adapter FROM action_results WHERE action_id=? AND adapter<>'' AND adapter<>'null' AND adapter NOT LIKE 'dry_run%' LIMIT 1",
+            (action_id,),
+        ).fetchone()
+        if side_effect:
+            raise ValueError("cannot change factual warrant after a real adapter dispatch")
+        bindings=self.list_action_warrants(action_id)
+        if not bindings:raise ValueError("action has no existing temporal warrant")
+        prior=bindings[-1]
+        if prior["status"] not in {"active","review_required"}:
+            raise ValueError(f"existing temporal warrant is not replaceable: {prior['status']}")
+        provenance=_load(prior.get("provenance_json"),{})
+        provenance["claim_binding"]="explicit"
+        new_id=self.issue_warrant(
+            subject=prior["subject"],
+            domain=prior["domain"],
+            authorized_actions=_load(prior["authorized_actions_json"],[]),
+            scope=_load(prior["scope_json"],[]),
+            basis_type="manual_review",
+            basis=basis,
+            issued_by=issued_by,
+            claim_ids=list(dict.fromkeys(claim_ids)),
+            claim_bridge=claim_bridge,
+            issued_at=_now(),
+            effective_from=_now(),
+            expires_at=prior.get("expires_at"),
+            completion_condition=prior.get("completion_condition") or "",
+            provenance=provenance,
+            supersedes_warrant_id=prior["id"],
+        )
+        self.bind_action_warrant(action_id,new_id)
+        return new_id
 
     def mark_action_warrants_review_required(self, action_id: str, *, reason: str) -> None:
         for warrant in self.list_action_warrants(action_id):
