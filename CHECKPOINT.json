@@ -1,9 +1,9 @@
 {
-  "version": "0.2.0a2",
+  "version": "0.2.0rc1",
   "name": "StillPoint",
   "package": "stillpoint",
   "base_commit": "f7447d9ccd1eccdf2d18dbd9fe5e04d40777a124",
-  "last_completed_milestone": "temporal-authority-operations-pass-1",
+  "last_completed_milestone": "core-0.2.0-release-candidate",
   "tests": {
     "baseline_release_candidate": {
       "passed": 172,
@@ -17,6 +17,15 @@
         "3.13"
       ],
       "workflow_run_id": 35383749235
+    },
+    "release_candidate": {
+      "passed": 206,
+      "failed": 0,
+      "python": [
+        "3.11",
+        "3.13"
+      ],
+      "workflow_run_id": null
     }
   },
   "behavioral_evaluations": {
@@ -121,12 +130,18 @@
     ]
   },
   "git": {
-    "working_branch": "feature/temporal-operations",
-    "base_main_commit": "46a9370a535524ad9da097e51a2d6c37cfc560d3",
-    "milestone_head_before_checkpoint": "9346279da0db03654786e0e15e174b74b4e58e80",
+    "working_branch": "release/0.2.0rc1",
+    "base_main_commit": "88a26691162faa1f5067b454b2c8e0022ac57a48",
+    "main_modified_by_this_branch": false,
     "historical_completion_branch": "completion/stillpoint-core-v1",
     "historical_completion_commit": "2f460d1559549fe5eec12f2ee064c0bb4742fed9",
-    "main_modified_by_this_branch": false,
-    "note": "Checkpoint commit SHA is reported outside this self-containing file."
+    "note": "Release-candidate commit and CI run are recorded after final verification."
+  },
+  "release_candidate": {
+    "status": "candidate_pending_final_ci",
+    "release_notes": "RELEASE_NOTES_0.2.0_RC1.md",
+    "production_external_adapters_added": false,
+    "frozen_evaluator_modified": false,
+    "main_target": "main"
   }
 }
