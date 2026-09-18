@@ -428,6 +428,75 @@ class TemporalAuthorityTests(unittest.TestCase):
             self.assertIn(("completed", "released"), transitions)
             db.close()
 
+
+    def test_terminal_warrant_link_does_not_rewrite_completed_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            db = CompanyDB(Path(d) / "db.sqlite")
+            ledger = TemporalAuthorityLedger(db)
+            old = ledger.issue_warrant(
+                subject="x", domain="d", authorized_actions=["act"], scope=["x"],
+                basis_type="policy", basis="old", issued_by="reviewer"
+            )
+            ledger.complete_warrant(old)
+            new = ledger.issue_warrant(
+                subject="x", domain="d", authorized_actions=["act"], scope=["x"],
+                basis_type="manual_review", basis="new facts", issued_by="reviewer",
+                supersedes_warrant_id=old
+            )
+            self.assertEqual(ledger.get_warrant(old)["status"], "completed")
+            self.assertEqual(ledger.get_warrant(new)["supersedes_warrant_id"], old)
+            db.close()
+
+    def test_review_before_approval_blocks_and_opens_resume_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt = make_runtime(Path(d))
+            out = rt.submit("Send this note to the printer.")
+            action = rt.db.list_action_requests(out.task_id)[0]
+            rt.temporal.mark_action_warrants_review_required(action["id"], reason="new evidence")
+            with self.assertRaises(RuntimeError):
+                rt.approve(out.task_id)
+            self.assertEqual(rt.db.get_task(out.task_id)["status"], "blocked")
+            self.assertEqual(rt.db.get_action_request(action["id"])["status"], "review_required")
+            rt.db.close()
+
+    def test_review_after_approval_blocks_execution_and_opens_resume_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt = make_runtime(Path(d))
+            out = rt.submit("Send this note to the printer.")
+            rt.approve(out.task_id)
+            action = rt.db.list_action_requests(out.task_id)[0]
+            rt.temporal.mark_action_warrants_review_required(action["id"], reason="new evidence")
+            with self.assertRaises(Exception) as caught:
+                rt.execute_action(action["id"], ActionAdapterRegistry([ReceiptAdapter()]))
+            self.assertIn("warrant", str(caught.exception).lower())
+            self.assertEqual(rt.db.get_task(out.task_id)["status"], "blocked")
+            self.assertEqual(rt.db.get_action_request(action["id"])["status"], "review_required")
+            rt.db.close()
+
+    def test_evidence_change_during_adapter_execution_never_false_completes(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt = make_runtime(Path(d))
+            out = rt.submit("Send this note to the printer.")
+            rt.approve(out.task_id)
+            action = rt.db.list_action_requests(out.task_id)[0]
+
+            class EvidenceChangesDuringDispatch(ReceiptAdapter):
+                name = "temporal-race-test"
+                def execute(self, request):
+                    rt.temporal.mark_action_warrants_review_required(
+                        request.action_id, reason="material evidence arrived during execution"
+                    )
+                    return super().execute(request)
+
+            result = rt.execute_action(
+                action["id"], ActionAdapterRegistry([EvidenceChangesDuringDispatch()])
+            )
+            self.assertEqual(result["status"], "review_required")
+            self.assertEqual(rt.db.get_task(out.task_id)["status"], "blocked")
+            self.assertEqual(rt.db.get_action_request(action["id"])["status"], "review_required")
+            self.assertEqual(len(rt.db.list_action_results(action["id"])), 1)
+            rt.db.close()
+
     def test_schema_version_six_contains_temporal_tables(self):
         with tempfile.TemporaryDirectory() as d:
             db = CompanyDB(Path(d) / "db.sqlite")

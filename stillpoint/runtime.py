@@ -311,9 +311,19 @@ class CompanyRuntime:
         for ref in req.artifact_refs:
             cur=latest.get(ref.kind)
             if ref.artifact_id and (not cur or cur["id"]!=ref.artifact_id or cur["version"]!=ref.version or cur["sha256"]!=ref.sha256):raise NotAuthorized("artifact changed since authorization")
-        self.temporal.authorize_action(req.action_id,req.action_type,"external_action",req.scope,now_iso=now_iso or _now_dt().isoformat())
+        auth_now=now_iso or _now_dt().isoformat()
+        try:
+            temporal_warrant=self.temporal.authorize_action(req.action_id,req.action_type,"external_action",req.scope,now_iso=auth_now)
+        except PermissionError as exc:
+            self.db.update_action_request_status(action_id,"review_required")
+            self.db.update_task(req.task_id,status="blocked",error=str(exc))
+            raise NotAuthorized(str(exc)) from exc
         result=adapter_registry.execute(req)
         self.db.add_action_result(result)
+        if not self.temporal.authorization_still_current(temporal_warrant["id"],expected_updated_at=temporal_warrant["updated_at"],action_type=req.action_type,domain="external_action",scope=req.scope,now_iso=now_iso or _now_dt().isoformat()):
+            self.db.update_action_request_status(action_id,"review_required")
+            self.db.update_task(req.task_id,status="blocked",error="temporal warrant changed during execution; external result preserved for review")
+            return {"action_id":action_id,"status":"review_required","result":result}
         status=runtime_complete(req,result,now_iso=now_iso)
         self.db.update_action_request_status(action_id,status)
         if status=="completed":
@@ -334,6 +344,13 @@ class CompanyRuntime:
                 cur=latest.get(ref.get("kind","other"))
                 if ref.get("artifact_id") and (not cur or cur["id"]!=ref.get("artifact_id") or cur["version"]!=ref.get("version",1) or cur["sha256"]!=ref.get("sha256")):
                     self.db.mark_action_stale(r["id"]);raise RuntimeError("artifact changed since action request was prepared")
+        try:
+            for r in requests:
+                self.temporal.authorize_action(r["id"],r["action_type"],"external_action",json.loads(r["scope_json"]),now_iso=_now_dt().isoformat())
+        except PermissionError as exc:
+            for r in requests:self.db.update_action_request_status(r["id"],"review_required")
+            self.db.update_task(task_id,status="blocked",error=str(exc))
+            raise RuntimeError("current temporal warrant required before approval") from exc
         approval=self.db.add_approval(task_id,"approved",note)
         for r in requests:self.db.bind_action_approval(r["id"],approval)
         self.db.update_task(task_id,status="ready_for_action",approval_reason="")

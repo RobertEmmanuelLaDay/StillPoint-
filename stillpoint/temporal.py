@@ -286,18 +286,19 @@ class TemporalAuthorityLedger:
         try:
             conn.execute("BEGIN IMMEDIATE")
             if supersedes_warrant_id:
-                prior = conn.execute("SELECT id FROM temporal_warrants WHERE id=?", (supersedes_warrant_id,)).fetchone()
+                prior = conn.execute("SELECT id,status FROM temporal_warrants WHERE id=?", (supersedes_warrant_id,)).fetchone()
                 if not prior:
                     raise KeyError(supersedes_warrant_id)
-                at = _now()
-                conn.execute(
-                    "UPDATE temporal_warrants SET status='superseded',updated_at=? WHERE id=?",
-                    (at, supersedes_warrant_id),
-                )
-                conn.execute(
-                    "INSERT INTO temporal_warrant_events(id,warrant_id,from_status,to_status,reason,created_at) VALUES(?,?,?,?,?,?)",
-                    (uuid.uuid4().hex[:20], supersedes_warrant_id, "active", "superseded", "superseded by new warrant", at),
-                )
+                if prior["status"] in {"active", "review_required"}:
+                    at = _now()
+                    conn.execute(
+                        "UPDATE temporal_warrants SET status='superseded',updated_at=? WHERE id=?",
+                        (at, supersedes_warrant_id),
+                    )
+                    conn.execute(
+                        "INSERT INTO temporal_warrant_events(id,warrant_id,from_status,to_status,reason,created_at) VALUES(?,?,?,?,?,?)",
+                        (uuid.uuid4().hex[:20], supersedes_warrant_id, prior["status"], "superseded", "superseded by new warrant", at),
+                    )
             conn.execute(
                 """INSERT INTO temporal_warrants
                 (id,subject,domain,authorized_actions_json,scope_json,basis_type,basis,issued_by,
@@ -426,6 +427,23 @@ class TemporalAuthorityLedger:
             ):
                 return self.get_warrant(warrant["id"], now_iso=now_iso)
         raise PermissionError("no current scope-bound warrant authorizes this action")
+
+    def authorization_still_current(
+        self,
+        warrant_id: str,
+        *,
+        expected_updated_at: str,
+        action_type: str,
+        domain: str,
+        scope: list[str],
+        now_iso: str | None = None,
+    ) -> bool:
+        warrant = self.get_warrant(warrant_id, now_iso=now_iso)
+        if warrant["updated_at"] != expected_updated_at:
+            return False
+        return self.warrant_authorizes(
+            warrant_id, action_type=action_type, domain=domain, scope=scope, now_iso=now_iso
+        )
 
     def ensure_runtime_warrant(
         self,
