@@ -502,6 +502,16 @@ class CompanyDB:
         )
         conn.commit()
 
+    def reset_action_for_reapproval(self, action_id: str, *, status: str = "waiting_approval") -> None:
+        conn=self._connection()
+        if not conn.execute("SELECT 1 FROM action_requests WHERE id=?", (action_id,)).fetchone():
+            raise KeyError(action_id)
+        conn.execute(
+            "UPDATE action_requests SET approval_id=NULL,status=?,updated_at=? WHERE id=?",
+            (status,utcnow(),action_id),
+        )
+        conn.commit()
+
     def mark_action_stale(self, action_id: str, reason: str = "stale authorization") -> None:
         # The schema intentionally stores status, not free-form stale reasons. The caller's
         # exception/event supplies the human-readable reason while persistence stays normalized.
