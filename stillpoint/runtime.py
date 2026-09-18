@@ -355,6 +355,35 @@ class CompanyRuntime:
         for r in requests:self.db.bind_action_approval(r["id"],approval)
         self.db.update_task(task_id,status="ready_for_action",approval_reason="")
         return self.db.get_task(task_id)
+    def ingest_evidence(self,*,subject,domain,source,payload,links=None,observed_at=None,provenance=None):
+        result=self.temporal.ingest_evidence(
+            subject=subject,domain=domain,source=source,payload=payload,links=links or [],
+            observed_at=observed_at,provenance=provenance,
+        )
+        blocked_tasks=[]
+        for action_id in result["review_action_ids"]:
+            action=self.db.get_action_request(action_id)
+            if not action or action["status"] in {"completed","stale","failed"}:continue
+            self.db.update_action_request_status(action_id,"review_required")
+            task=self.db.get_task(action["task_id"])
+            if task and task["status"] not in {"completed","rejected"}:
+                self.db.update_task(action["task_id"],status="blocked",error="material continuing evidence requires temporal review")
+                blocked_tasks.append(action["task_id"])
+        result["blocked_task_ids"]=list(dict.fromkeys(blocked_tasks))
+        return result
+
+    def bind_action_claims(self,action_id,claim_ids,*,bridge="",basis="operator-bound current evidence"):
+        action=self.db.get_action_request(action_id)
+        if not action:raise KeyError(action_id)
+        warrant_id=self.temporal.attach_claims_to_action_warrant(
+            action_id,list(claim_ids),claim_bridge=bridge,basis=basis,issued_by="stillpoint-runtime"
+        )
+        self.db.reset_action_for_reapproval(action_id)
+        task=self.db.get_task(action["task_id"])
+        if task and task["status"] not in {"completed","rejected"}:
+            self.db.update_task(action["task_id"],status="waiting_approval",approval_reason="temporal claim binding changed; CEO reapproval required",error=None)
+        return {"action_id":action_id,"warrant_id":warrant_id,"claim_ids":list(dict.fromkeys(claim_ids))}
+
     def reject(self,task_id,note=""):
         task=self.db.get_task(task_id)
         if not task:raise KeyError(task_id)
