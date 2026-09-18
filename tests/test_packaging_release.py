@@ -36,6 +36,20 @@ class PackagingReleaseTests(unittest.TestCase):
         self.assertTrue((ROOT / "pyproject.toml").is_file())
         self.assertTrue((ROOT / ".github" / "workflows" / "ci.yml").is_file())
 
+    def test_release_version_metadata_is_coherent(self):
+        import tomllib
+        pyproject=tomllib.loads((ROOT/"pyproject.toml").read_text(encoding="utf-8"))
+        package_version=pyproject["project"]["version"]
+        namespace={}
+        exec((ROOT/"stillpoint"/"__init__.py").read_text(encoding="utf-8"),namespace)
+        checkpoint=json.loads((ROOT/"CHECKPOINT.json").read_text(encoding="utf-8"))
+        self.assertEqual(package_version,namespace["__version__"])
+        self.assertEqual(package_version,checkpoint["version"])
+        if "rc" in package_version:
+            notes=ROOT/f"RELEASE_NOTES_{package_version.replace('rc','_RC').replace('.','.')}.md"
+            # Release notes use a stable human-readable filename; ensure one exists for this candidate.
+            self.assertTrue((ROOT/"RELEASE_NOTES_0.2.0_RC1.md").is_file())
+
     def test_checkpoint_is_machine_readable(self):
         checkpoint = ROOT / "CHECKPOINT.json"
         if checkpoint.exists():
