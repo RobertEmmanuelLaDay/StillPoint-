@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from stillpoint.adapters.base import NotAuthorized
 from stillpoint.adapters.registry import ActionAdapterRegistry, DryRunActionAdapter
 from stillpoint.contracts.models import ActionEvidence, ActionResult
 from stillpoint.db import CompanyDB
@@ -290,7 +291,7 @@ class TemporalAuthorityTests(unittest.TestCase):
             action = rt.db.list_action_requests(out.task_id)[0]
             warrant = rt.temporal.list_action_warrants(action["id"])[0]
             rt.temporal.revoke_warrant(warrant["id"], "conditions changed")
-            with self.assertRaises(PermissionError):
+            with self.assertRaises(NotAuthorized):
                 rt.execute_action(action["id"], ActionAdapterRegistry([ReceiptAdapter()]))
             rt.db.close()
 
@@ -323,7 +324,7 @@ class TemporalAuthorityTests(unittest.TestCase):
             rt.approve(out.task_id)
             action = rt.db.list_action_requests(out.task_id)[0]
             rt.temporal.mark_action_warrants_review_required(action["id"], reason="new evidence")
-            with self.assertRaises(PermissionError):
+            with self.assertRaises(NotAuthorized):
                 rt.execute_action(action["id"], ActionAdapterRegistry([ReceiptAdapter()]))
             self.assertEqual(rt.db.get_task(out.task_id)["status"], "ready_for_action")
             rt.db.close()
@@ -466,7 +467,7 @@ class TemporalAuthorityTests(unittest.TestCase):
             rt.approve(out.task_id)
             action = rt.db.list_action_requests(out.task_id)[0]
             rt.temporal.mark_action_warrants_review_required(action["id"], reason="new evidence")
-            with self.assertRaises(Exception) as caught:
+            with self.assertRaises(NotAuthorized) as caught:
                 rt.execute_action(action["id"], ActionAdapterRegistry([ReceiptAdapter()]))
             self.assertIn("warrant", str(caught.exception).lower())
             self.assertEqual(rt.db.get_task(out.task_id)["status"], "blocked")
