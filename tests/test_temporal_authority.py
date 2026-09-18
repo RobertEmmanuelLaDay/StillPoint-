@@ -499,6 +499,95 @@ class TemporalAuthorityTests(unittest.TestCase):
             self.assertEqual(len(rt.db.list_action_results(action["id"])), 1)
             rt.db.close()
 
+
+    def test_explicit_claim_binding_invalidates_prior_approval(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt=make_runtime(Path(d))
+            claim=rt.temporal.record_claim(
+                subject="printer",predicate="available",value=True,domain="external_action",
+                source="operator",truth_state="supported",subject_mode="dynamic"
+            )
+            out=rt.submit("Send this note to the printer.")
+            rt.approve(out.task_id)
+            action=rt.db.list_action_requests(out.task_id)[0]
+            self.assertTrue(action["approval_id"])
+            bound=rt.bind_action_claims(action["id"],[claim])
+            self.assertEqual(bound["claim_ids"],[claim])
+            action2=rt.db.get_action_request(action["id"])
+            self.assertIsNone(action2["approval_id"])
+            self.assertEqual(action2["status"],"waiting_approval")
+            self.assertEqual(rt.db.get_task(out.task_id)["status"],"waiting_approval")
+            rt.db.close()
+
+    def test_cross_task_continuing_evidence_blocks_all_live_actions(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt=make_runtime(Path(d))
+            claim=rt.temporal.record_claim(
+                subject="vendor:1",predicate="authorized",value=True,domain="external_action",
+                source="operator",truth_state="supported",subject_mode="dynamic"
+            )
+            a=rt.submit("Send this note to the printer.")
+            b=rt.submit("Send this note to the publisher.")
+            ar=rt.db.list_action_requests(a.task_id)[0]
+            br=rt.db.list_action_requests(b.task_id)[0]
+            rt.bind_action_claims(ar["id"],[claim]);rt.bind_action_claims(br["id"],[claim])
+            rt.approve(a.task_id);rt.approve(b.task_id)
+            result=rt.ingest_evidence(
+                subject="vendor:1",domain="external_action",source="new-record",
+                payload={"authorized":False},
+                links=[{"claim_id":claim,"relation":"contradicts"}],
+            )
+            self.assertEqual(set(result["review_action_ids"]),{ar["id"],br["id"]})
+            self.assertEqual(set(result["blocked_task_ids"]),{a.task_id,b.task_id})
+            self.assertEqual(rt.db.get_action_request(ar["id"])["status"],"review_required")
+            self.assertEqual(rt.db.get_action_request(br["id"])["status"],"review_required")
+            rt.db.close()
+
+    def test_dynamic_completed_action_opens_reentry_without_rewriting_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            rt=make_runtime(Path(d))
+            claim=rt.temporal.record_claim(
+                subject="printer",predicate="available",value=True,domain="external_action",
+                source="operator",truth_state="supported",subject_mode="dynamic"
+            )
+            out=rt.submit("Send this note to the printer.")
+            action=rt.db.list_action_requests(out.task_id)[0]
+            rt.bind_action_claims(action["id"],[claim]);rt.approve(out.task_id)
+            rt.execute_action(action["id"],ActionAdapterRegistry([ReceiptAdapter()]))
+            completed_warrant=rt.temporal.list_action_warrants(action["id"])[-1]
+            self.assertEqual(completed_warrant["status"],"completed")
+            result=rt.ingest_evidence(
+                subject="printer",domain="external_action",source="new-record",
+                payload={"available":False},
+                links=[{"claim_id":claim,"relation":"contradicts"}],
+            )
+            self.assertEqual(rt.db.get_action_request(action["id"])["status"],"completed")
+            self.assertEqual(rt.db.get_task(out.task_id)["status"],"completed")
+            self.assertEqual(len(result["reentry_ids"]),1)
+            row=rt.temporal.list_reentries(subject="printer")[-1]
+            self.assertEqual(row["prior_warrant_id"],completed_warrant["id"])
+            rt.db.close()
+
+    def test_static_completed_claim_does_not_auto_open_reentry(self):
+        with tempfile.TemporaryDirectory() as d:
+            db=CompanyDB(Path(d)/"db.sqlite");ledger=TemporalAuthorityLedger(db)
+            claim=ledger.record_claim(
+                subject="archive:1",predicate="hash",value="abc",domain="archive",
+                source="archive",truth_state="supported",subject_mode="static"
+            )
+            warrant=ledger.issue_warrant(
+                subject="archive:1",domain="archive",authorized_actions=["review"],scope=["archive:1"],
+                basis_type="policy",basis="archive rule",issued_by="reviewer",claim_ids=[claim]
+            )
+            ledger.complete_warrant(warrant)
+            result=ledger.ingest_evidence(
+                subject="archive:1",domain="archive",source="later",
+                payload={"hash":"def"},links=[{"claim_id":claim,"relation":"contradicts"}]
+            )
+            self.assertEqual(result["reentry_ids"],[])
+            self.assertEqual(ledger.get_warrant(warrant)["status"],"completed")
+            db.close()
+
     def test_schema_version_six_contains_temporal_tables(self):
         with tempfile.TemporaryDirectory() as d:
             db = CompanyDB(Path(d) / "db.sqlite")
