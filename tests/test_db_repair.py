@@ -4,10 +4,10 @@ from stillpoint.db import CompanyDB
 from stillpoint.contracts.models import ActionRequest,ArtifactRef
 
 class DBRepairTests(unittest.TestCase):
-    def test_fresh_db_migrates_to_4(self):
+    def test_fresh_db_migrates_to_6(self):
         with tempfile.TemporaryDirectory() as d:
             db=CompanyDB(Path(d)/"x.sqlite")
-            self.assertEqual(db.schema_version,4);db.close()
+            self.assertEqual(db.schema_version,6);db.close()
     def test_future_db_fails_closed(self):
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/"x.sqlite"; c=sqlite3.connect(p); c.execute("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,applied_at TEXT NOT NULL)"); c.execute("INSERT INTO schema_migrations VALUES(99,'x')");c.commit();c.close()

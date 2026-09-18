@@ -27,7 +27,7 @@ class PackagingReleaseTests(unittest.TestCase):
     def test_packaged_migrations_can_create_fresh_database(self):
         with tempfile.TemporaryDirectory() as d:
             with CompanyDB(Path(d) / "db.sqlite", migrations_dir=ROOT / "stillpoint" / "migrations") as db:
-                self.assertGreaterEqual(db.schema_version, 4)
+                self.assertGreaterEqual(db.schema_version, 6)
                 tables = {row[0] for row in db.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 self.assertIn("action_requests", tables)
                 self.assertIn("task_budgets", tables)
