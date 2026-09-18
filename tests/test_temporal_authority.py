@@ -326,7 +326,8 @@ class TemporalAuthorityTests(unittest.TestCase):
             rt.temporal.mark_action_warrants_review_required(action["id"], reason="new evidence")
             with self.assertRaises(NotAuthorized):
                 rt.execute_action(action["id"], ActionAdapterRegistry([ReceiptAdapter()]))
-            self.assertEqual(rt.db.get_task(out.task_id)["status"], "ready_for_action")
+            self.assertEqual(rt.db.get_task(out.task_id)["status"], "blocked")
+            self.assertEqual(rt.db.get_action_request(action["id"])["status"], "review_required")
             rt.db.close()
 
 
