@@ -75,6 +75,24 @@ Material later evidence can place a supporting warrant into `review_required` wi
 
 The runtime binds every restricted external `ActionRequest` to an explicit temporal warrant in addition to CEO approval. Approval therefore remains necessary but is no longer sufficient when the current warrant has expired, been revoked, or requires review.
 
+## Temporal operator surface
+
+Temporal authority is available through the operator CLI as well as the Python runtime. Operators can inspect and create claims and evidence, inspect warrants and transition receipts, explicitly bind factual claims to pending action warrants, revoke or release warrants, and open or resolve re-entry evaluations.
+
+Examples:
+
+```bash
+python -m stillpoint.cli temporal claims --subject person:1
+python -m stillpoint.cli temporal claim-add person:1 eligibility benefits caseworker true --truth-state supported --subject-mode dynamic
+python -m stillpoint.cli temporal evidence-add person:1 benefits new-record '{"eligible": false}' --link CLAIM_ID:contradicts
+python -m stillpoint.cli temporal warrants --subject person:1
+python -m stillpoint.cli temporal warrant WARRANT_ID
+python -m stillpoint.cli temporal action-bind-claims ACTION_ID CLAIM_ID
+python -m stillpoint.cli temporal reentries --subject person:1
+```
+
+Material continuing evidence now propagates across task boundaries. Active actions whose factual support enters review are moved to `review_required` and their tasks are blocked for re-evaluation. Completed history stays completed; for explicitly dynamic subjects, materially contrary later evidence can open a new auditable re-entry evaluation without rewriting the old action or warrant.
+
 ## Tests
 
 ```bash
