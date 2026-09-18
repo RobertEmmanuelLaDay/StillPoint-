@@ -16,6 +16,7 @@ from .planner import Planner
 from .policy import CompanyPolicy
 from .prompts import agent_system_prompt,review_prompt,task_prompt
 from .registry import AgentRegistry
+from .temporal import TemporalAuthorityLedger
 
 def _sha_text(text:str)->str:return hashlib.sha256(text.encode("utf-8")).hexdigest()
 def _now_dt():return datetime.now(timezone.utc)
@@ -26,6 +27,7 @@ class CompanyRuntime:
         self.raw_provider=provider;self._active_task_id=None;self.default_budget=default_budget
         self.provider=BudgetedProviderProxy(provider,task_id_getter=lambda:self._active_task_id,before_call=self._budget_before_call,after_call=self._budget_after_call)
         self.policy=CompanyPolicy(provider=self.provider,authority_model=default_model)
+        self.temporal=TemporalAuthorityLedger(db)
         self.planner=Planner(registry,self.policy,self.provider,default_model,smart=smart_routing)
         self.managed_files=root/"state"/"managed_files"
         self.allowed_import_roots=[Path(r).resolve() for r in (allowed_import_roots or [root])]
@@ -179,7 +181,9 @@ class CompanyRuntime:
                 kind=ref.get("kind","other");cur=latest.get(kind)
                 if cur and (cur["id"]!=ref.get("artifact_id") or cur["version"]!=ref.get("version",1) or cur["sha256"]!=ref.get("sha256")):
                     stale=True
-            if stale:self.db.mark_action_stale(row["id"])
+            if stale:
+                self.db.mark_action_stale(row["id"])
+                self.temporal.mark_action_warrants_review_required(row["id"],reason="action request became stale")
     def _prepare_actions(self,task_id,goal,plan):
         if not plan.restricted_actions:return []
         self._stale_superseded_actions(task_id,plan)
@@ -191,9 +195,13 @@ class CompanyRuntime:
             a=by_intent.get(action); target=(a.clause.strip() if a and a.clause else (a.target if a else "unknown"));scope=[a.target if a else "unknown",target]
             raw="|".join([task_id,plan.authority_revision,action,target,*[f"{r.artifact_id}:{r.version}:{r.sha256}" for r in refs]])
             idem=hashlib.sha256(raw.encode()).hexdigest();existing=self.db.find_action_request_by_idempotency(idem)
-            if existing:out.append(existing["id"]);continue
+            if existing:
+                self.temporal.ensure_runtime_warrant(action_id=existing["id"],task_id=task_id,action_type=existing["action_type"],target=existing["target"],scope=json.loads(existing["scope_json"]),authority_revision=existing["authority_revision"],issued_at=existing["issued_at"],expires_at=existing["expires_at"])
+                out.append(existing["id"]);continue
             req=ActionRequest(action_id=hashlib.sha256(("action|"+raw).encode()).hexdigest()[:20],task_id=task_id,action_type=action,target=target,scope=scope,artifact_refs=refs,approval_required=True,approval_id=None,expires_at=(now+timedelta(hours=24)).isoformat(),issued_at=now.isoformat(),idempotency_key=idem,success_criteria=[{"send_email":"delivery_receipt","publish":"publication_receipt","social_post":"post_receipt","spend":"payment_receipt","sign":"signature_receipt","delete":"deletion_receipt"}.get(action,"external_receipt")],authority_revision=plan.authority_revision)
-            self.db.add_action_request(req);out.append(req.action_id)
+            self.db.add_action_request(req)
+            self.temporal.ensure_runtime_warrant(action_id=req.action_id,task_id=task_id,action_type=req.action_type,target=req.target,scope=req.scope,authority_revision=req.authority_revision,issued_at=req.issued_at,expires_at=req.expires_at)
+            out.append(req.action_id)
         return out
     def _finish(self,task_id,goal,plan,primary_output,review_text):
         if plan.restricted_actions:
@@ -303,11 +311,13 @@ class CompanyRuntime:
         for ref in req.artifact_refs:
             cur=latest.get(ref.kind)
             if ref.artifact_id and (not cur or cur["id"]!=ref.artifact_id or cur["version"]!=ref.version or cur["sha256"]!=ref.sha256):raise NotAuthorized("artifact changed since authorization")
+        self.temporal.authorize_action(req.action_id,req.action_type,"external_action",req.scope,now_iso=now_iso or _now_dt().isoformat())
         result=adapter_registry.execute(req)
         self.db.add_action_result(result)
         status=runtime_complete(req,result,now_iso=now_iso)
         self.db.update_action_request_status(action_id,status)
         if status=="completed":
+            self.temporal.complete_action_warrant(action_id)
             pending=[r for r in self.db.list_action_requests(req.task_id) if r["status"]!="completed"]
             if not pending:self.db.update_task(req.task_id,status="completed")
         return {"action_id":action_id,"status":status,"result":result}

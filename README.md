@@ -67,6 +67,14 @@ Restricted actions are preserved as a set, so compound instructions such as sign
 
 A task can become `completed` after external execution only when the registered adapter succeeds and structured evidence satisfies the request's exact success criteria. A null or dry-run adapter can never establish real-world completion.
 
+## Temporal authority and continuing evidence
+
+The temporal authority layer separates claims, evidence, warrants, actions, and historical records. A description or prediction may inform a decision, but it cannot self-authorize an external action. Warrants are explicit, domain- and scope-bound, time-aware, auditable, and independently revocable or reviewable.
+
+Material later evidence can place a supporting warrant into `review_required` without rewriting the earlier claim out of history. Expired, revoked, completed, superseded, or released warrants cannot authorize new action. Release preserves records while ending extraordinary authority.
+
+The runtime binds every restricted external `ActionRequest` to an explicit temporal warrant in addition to CEO approval. Approval therefore remains necessary but is no longer sufficient when the current warrant has expired, been revoked, or requires review.
+
 ## Tests
 
 ```bash
