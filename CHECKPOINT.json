@@ -1,22 +1,22 @@
 {
-  "version": "0.2.0a1",
+  "version": "0.2.0a2",
   "name": "StillPoint",
   "package": "stillpoint",
   "base_commit": "f7447d9ccd1eccdf2d18dbd9fe5e04d40777a124",
-  "last_completed_milestone": "temporal-authority-continuing-evidence-pass-1",
+  "last_completed_milestone": "temporal-authority-operations-pass-1",
   "tests": {
     "baseline_release_candidate": {
       "passed": 172,
       "failed": 0
     },
     "milestone_full_suite": {
-      "passed": 200,
+      "passed": 205,
       "failed": 0,
       "python": [
         "3.11",
         "3.13"
       ],
-      "workflow_run_id": 35382634442
+      "workflow_run_id": 35383749235
     }
   },
   "behavioral_evaluations": {
@@ -76,13 +76,23 @@
       "warrant changes during adapter execution prevent false completion",
       "re-entry creates a new auditable evaluation rather than rewriting prior state",
       "founder, administrator, and provider identity do not bypass warrant state"
+    ],
+    "operationalized": [
+      "operator CLI for claims, evidence, warrants, warrant events, and re-entry",
+      "explicit factual-claim binding for pending ActionRequests",
+      "claim-binding changes invalidate prior approval and require CEO reapproval",
+      "material continuing evidence propagates across task boundaries",
+      "live actions whose factual support enters review move to review_required and block their tasks",
+      "completed actions remain completed history while dynamic subjects may open a new re-entry evaluation",
+      "static subjects do not auto-open re-entry merely because later contradictory evidence exists",
+      "doctor verifies temporal schema surface"
     ]
   },
   "known_runtime_defects": [],
   "known_limitations": [
-    "The temporal ledger is currently a Python runtime API; dedicated CLI inspection and operator commands are not yet exposed.",
-    "Runtime-generated external-action warrants are bound to the current CEO request and policy authority revision; domain applications that rely on substantive factual claims must explicitly attach those claims through the temporal ledger.",
-    "A warrant invalidated during a real adapter call cannot undo an external side effect already emitted; StillPoint preserves the external result, blocks false completion, and requires review/re-entry."
+    "Production external adapters remain intentionally disabled; approved work without a live adapter still stops at ready_for_action.",
+    "Re-entry evaluation is durable and inspectable, but domain-specific policy still decides whether a new warrant should actually be issued.",
+    "A warrant invalidated during a real adapter call cannot undo an external side effect already emitted; StillPoint preserves the result, blocks false completion, and requires review/re-entry."
   ],
   "known_evaluator_expectation_conflicts": {
     "original_50_calibrated": [
@@ -111,12 +121,12 @@
     ]
   },
   "git": {
-    "working_branch": "feature/temporal-authority-layer",
-    "stable_main_commit": "f7447d9ccd1eccdf2d18dbd9fe5e04d40777a124",
-    "implementation_head_before_checkpoint": "86f2dd392fc71429159ace8f397a02d68f57bf19",
+    "working_branch": "feature/temporal-operations",
+    "base_main_commit": "46a9370a535524ad9da097e51a2d6c37cfc560d3",
+    "milestone_head_before_checkpoint": "9346279da0db03654786e0e15e174b74b4e58e80",
     "historical_completion_branch": "completion/stillpoint-core-v1",
     "historical_completion_commit": "2f460d1559549fe5eec12f2ee064c0bb4742fed9",
-    "main_modified": false,
-    "note": "The checkpoint commit SHA is intentionally reported outside this self-containing file."
+    "main_modified_by_this_branch": false,
+    "note": "Checkpoint commit SHA is reported outside this self-containing file."
   }
 }
