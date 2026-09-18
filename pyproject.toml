@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stillpoint-core"
-version = "0.2.0a1"
+version = "0.2.0a2"
 description = "Provider-independent company operating system runtime for StillPoint"
 readme = "README.md"
 requires-python = ">=3.11"
