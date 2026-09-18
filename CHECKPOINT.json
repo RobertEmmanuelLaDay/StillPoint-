@@ -25,7 +25,7 @@
         "3.11",
         "3.13"
       ],
-      "workflow_run_id": null
+      "workflow_run_id": 35384344217
     }
   },
   "behavioral_evaluations": {
@@ -135,13 +135,15 @@
     "main_modified_by_this_branch": false,
     "historical_completion_branch": "completion/stillpoint-core-v1",
     "historical_completion_commit": "2f460d1559549fe5eec12f2ee064c0bb4742fed9",
-    "note": "Release-candidate commit and CI run are recorded after final verification."
+    "note": "Release-candidate commit and CI run are recorded after final verification.",
+    "release_candidate_verified_head": "9eb77e4c7cdb7f148ce9ce0dc416f56193f0db5d"
   },
   "release_candidate": {
-    "status": "candidate_pending_final_ci",
+    "status": "earned",
     "release_notes": "RELEASE_NOTES_0.2.0_RC1.md",
     "production_external_adapters_added": false,
     "frozen_evaluator_modified": false,
-    "main_target": "main"
+    "main_target": "main",
+    "final_branch_ci_run_id": 35384344217
   }
 }
