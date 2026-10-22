@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StillPoint • Explore the Investigation</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#21373d;background:#f7f4ed;color-scheme:light}
+*{box-sizing:border-box}body{margin:0}
+button,input{font:inherit}button{cursor:pointer}
+.topbar{min-height:77px;background:#fffefb;border-bottom:1px solid #dedfd4;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.logo{width:40px;height:40px;border:2px solid #1e6b61;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#127b6d;font-size:24px;background:#e1f8ed;flex-shrink:0}
+.eyebrow{font-size:10px;font-weight:820;letter-spacing:2px;text-transform:uppercase;color:#37756c}
+h1{font-size:clamp(20px,2.3vw,27px);letter-spacing:-.8px;margin:2px 0 0;font-weight:810}
+.header-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid #d9e0dc;border-radius:100px;padding:8px 12px;background:#fff;font-weight:670;font-size:12px;color:#29464b;text-decoration:none}
+.pill:hover{border-color:#2a9c87}.status-dot{width:8px;height:8px;border-radius:50%;background:#c5904f}
+.page{display:grid;grid-template-columns:257px minmax(0,1fr) 318px;height:calc(100vh - 77px);min-height:620px}
+.rail{overflow-y:auto;background:#fffdf8;border-right:1px solid #d9e0d9;padding:24px 18px}
+.rail-title{font-weight:810;font-size:12px;letter-spacing:1.3px;color:#668080;margin:0 0 12px}
+.mission{width:100%;border:1px solid transparent;border-radius:13px;display:flex;align-items:flex-start;gap:10px;padding:10px 9px;background:transparent;text-align:left;color:#394f54}
+.mission:hover{background:#f0f5ef}.mission.active{background:#e0f2eb;border-color:#a7d8c9;color:#0c6759}
+.num{font-size:11px;line-height:23px;text-align:center;width:25px;min-width:25px;height:25px;border:1px solid #d5ded7;border-radius:8px;font-weight:850}
+.mission.active .num{background:#16796b;color:#fff;border-color:#16796b}
+.mtitle{display:block;font-size:12px;line-height:1.3;font-weight:730}
+.mdesc{display:block;font-size:10px;line-height:1.4;color:#809391;margin-top:3px}
+.sep{border:0;border-top:1px solid #e0e6df;margin:19px 0}
+.how{font-size:12px;color:#5c7374;line-height:1.55;margin:0}
+.canvas-wrap{min-width:0;position:relative;display:flex;flex-direction:column;overflow:hidden;background:radial-gradient(ellipse at 30% 28%,#f6f4e7 0%,#f1f5ef 55%,#e6f1ec 100%)}
+.controls{padding:16px 19px 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;z-index:2}
+.find{flex:1;min-width:170px;height:41px;border:1px solid #cad9d1;border-radius:11px;padding:0 13px 0 36px;background:#fff;color:#244447;box-shadow:0 3px 18px #17342b0b}
+.find-wrap{flex:1;min-width:180px;position:relative}.glass{position:absolute;left:13px;top:10px;font-size:17px;color:#688b81}
+.smallbtn{border:1px solid #c9dcd3;background:#fff;border-radius:10px;height:40px;padding:0 12px;font-weight:730;color:#37645c}
+.smallbtn:hover,.smallbtn.active{background:#e0f2ea;border-color:#89c3b0}
+.filters{display:flex;gap:7px;flex-wrap:wrap;padding:0 19px 10px;z-index:2}
+.filter{border:1px solid #ccdcd1;background:#ffffffbb;border-radius:30px;font-weight:720;font-size:11px;color:#607571;padding:7px 11px}
+.filter.active{background:#245b52;color:white;border-color:#245b52}
+.graphbox{flex:1;min-height:250px;overflow:hidden;position:relative}
+.map-graphic{display:block;width:100%;height:100%;touch-action:none;cursor:grab;outline:none}
+.map-graphic.grabbing{cursor:grabbing}
+#graph .connection{fill:none;stroke:#a3b4a8;stroke-width:2;opacity:.45;pointer-events:none}
+#graph .connection.hot{stroke:#e59750;stroke-width:3;opacity:1}
+#graph .node{cursor:pointer;outline:none}
+#graph .node:focus .plate{stroke:#144a41;stroke-width:4}
+#graph .node .plate{stroke-width:1.8;rx:16;ry:16}
+#graph .node .primary{font-size:14px;font-weight:760;fill:#203a3b}
+#graph .node .subtitle{font-size:10px;font-weight:680;fill:#597779}
+#graph .node.selected .plate{stroke:#122e30;stroke-width:4;filter:drop-shadow(0 5px 9px #154e4d40)}
+#graph .node.muted{opacity:.17}
+#graph .node text{pointer-events:none}
+.bottomnote{position:absolute;bottom:14px;left:19px;right:19px;display:flex;justify-content:space-between;gap:12px;pointer-events:none;color:#607b77;font-size:11px}
+.bottomnote span{background:#ffffffe6;border:1px solid #dbe4dc;padding:7px 11px;border-radius:12px}
+.inspector{background:#fffefa;border-left:1px solid #dbe4dc;padding:24px 22px;overflow-y:auto;min-width:0}
+.inspector h2{font-size:22px;line-height:1.12;letter-spacing:-.6px;margin:11px 0 12px}
+.inspector p{font-size:13px;line-height:1.65;color:#647a7a}
+.kicker{font-size:10px;letter-spacing:1.6px;font-weight:850;color:#617873;text-transform:uppercase}
+.kind-pill{font-size:11px;font-weight:750;padding:7px 10px;border-radius:9px;display:inline-block;background:#e8f0e8;color:#38675c}
+.details{padding:14px 15px;border:1px solid #e0e6dd;border-radius:12px;background:#f7f9f4;font-size:12px;line-height:1.6;color:#506b66}
+.action{width:100%;text-decoration:none;display:block;text-align:center;background:#126c60;color:white;border:0;padding:13px 16px;font-size:12px;font-weight:790;border-radius:11px;margin-top:12px}
+.action.secondary{background:#f0f6f1;color:#24675b;border:1px solid #cfe4d8}
+.links{display:grid;gap:7px;margin-top:11px}.link-node{text-align:left;border:1px solid #e0e6dd;border-radius:10px;background:white;padding:9px 11px;color:#345e59;font-size:12px}
+.link-node:hover{background:#f0f7f2}
+.totals{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:18px 0}
+.total{padding:11px;background:#f0f6ee;border:1px solid #e0e9de;border-radius:12px;font-size:10px;color:#5f7570}
+.total b{display:block;font-size:20px;color:#1a5952}
+.notice{font-size:11px;line-height:1.5;padding:11px 12px;background:#fff5e7;border:1px solid #e9cfab;border-radius:11px;color:#7b6547;margin-top:15px}
+.legend{display:grid;gap:9px;margin-top:18px;font-size:11px;color:#627978}.legend-item{display:flex;align-items:center;gap:9px}
+.legend-item i{display:inline-block;height:12px;width:12px;border-radius:4px;flex-shrink:0}
+#map-error{font-size:13px;color:#8d3a2c;padding:0 18px}.mobile-header{display:none}
+@media(max-width:1070px){.page{grid-template-columns:210px minmax(0,1fr) 255px}.rail{padding:18px 11px}.inspector{padding:19px 15px}}
+@media(max-width:810px){.page{grid-template-columns:1fr;height:auto;min-height:0}.rail{display:flex;overflow-x:auto;gap:7px;padding:10px;border-right:0;border-bottom:1px solid #d9e0d9}.rail-title,.rail .sep,.rail .how{display:none}.mission{min-width:151px;flex:0 0 151px;padding:9px}.mdesc{display:none}.canvas-wrap{height:65vh;min-height:420px}.inspector{border-left:0;border-top:1px solid #dbe4dc}.topbar{padding:12px}.mobile-header{display:block}.inspector .totals{max-width:350px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="logo" aria-hidden="true">✦</div><div><div class="eyebrow">StillPoint · Common Ground School</div><h1>Explore the Investigation</h1></div></div>
+  <div class="header-buttons"><span class="pill"><span class="status-dot" id="dot"></span><span id="caseCount">Study map</span></span><span class="pill">Public, read-only preview</span></div>
+</header>
+<div class="page">
+<nav class="rail" aria-label="Investigation missions"><p class="rail-title">11 RESEARCH MISSIONS</p><div id="missions"></div><hr class="sep"><p class="how">Choose a mission, then click any connected idea or Scripture passage. The map grows as real investigations are recorded.</p></nav>
+<main class="canvas-wrap">
+  <div class="controls">
+    <div class="find-wrap"><span class="glass" aria-hidden="true">⌕</span><input class="find" id="search" type="search" autocomplete="off" aria-label="Search the map" placeholder="Search Jesus, Sabbath, mercy, Scripture…"></div>
+    <button class="smallbtn" id="zoomOut" aria-label="Zoom out">−</button><button class="smallbtn" id="zoomIn" aria-label="Zoom in">+</button><button class="smallbtn" id="fit">Fit map</button>
+  </div>
+  <div class="filters" aria-label="Map layers" id="filters"></div>
+  <div class="graphbox">
+    <svg class="map-graphic" id="graph" viewBox="0 0 1420 900" role="img" aria-label="Interactive network of Scripture, Gospel events, interpretations, questions, and case evidence">
+      <defs><pattern id="dots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.05" fill="#acc8b7" opacity=".35"/></pattern></defs>
+      <rect id="paper" x="0" y="0" width="1420" height="900" fill="url(#dots)" pointer-events="none"/>
+      <g id="connections"></g><g id="nodes"></g>
+    </svg>
+    <div class="bottomnote"><span>Drag to move · Scroll or +/- to zoom</span><span>Click a node to trace its connections</span></div>
+  </div>
+  <div id="map-error" role="status"></div>
+</main>
+<aside class="inspector" id="inspector" aria-live="polite"><div class="kicker">WELCOME TO THE MAP</div><h2>Follow the evidence.</h2><p>Choose any idea on the map to explore its passages, claims, historical questions, and connected cases.</p></aside>
+</div>
+<script>
+"use strict";
+const PUBLIC_GRAPH={"schema":"capture77.study-reference-map.v1","title":"Explore the Investigation","nodes":[{"id":"foundation","label":"Received existence","x":190,"y":300,"kind":"ontology","summary":"A thing exists before we name or interpret it.","detail":"Our opening reality test: the river is not created by the map.","missions":[0],"status":"study_reference"},{"id":"river","label":"Tigris River","x":110,"y":470,"kind":"ontology","summary":"The river is the referent; competing names are descriptions.","detail":"Geography is independently testable; this is a teaching comparison, not evidence for theology.","missions":[0],"status":"study_reference"},{"id":"names","label":"Different names","x":85,"y":655,"kind":"ontology","summary":"Different communities may use different names for the same referent.","detail":"Investigate translation and reference without coercing uniform language.","missions":[0],"status":"study_reference"},{"id":"map","label":"A map can be wrong","x":390,"y":620,"kind":"method","summary":"Models, classifications, and accusations must be corrected when the sources disagree.","detail":"The investigator's judgment is accountable to its referent.","missions":[1],"status":"study_reference"},{"id":"christ","label":"Jesus Christ","x":660,"y":335,"kind":"person","summary":"The central Gospel referent of these investigations.","detail":"Compare textual witness, historical questions and interpreted claims without pretending they are the same.","missions":[2,9],"status":"study_reference"},{"id":"premise","label":"Christ did not sin","x":645,"y":95,"kind":"premise","summary":"Declared theological starting premise of the investigation.","detail":"A research premise is not equivalent to independently demonstrated historical proof. Agents must keep this distinction visible.","missions":[2],"status":"study_reference"},{"id":"sabbath","label":"Sabbath healing","x":480,"y":420,"kind":"event","summary":"Mark depicts Jesus healing a man with a withered hand on the Sabbath.","detail":"Study Mark 3:1–6; investigate the accusation, the command and the moral argument.","missions":[3],"status":"study_reference"},{"id":"table","label":"Eating with sinners","x":855,"y":445,"kind":"event","summary":"Matthew depicts Jesus eating with tax collectors and sinners.","detail":"Study Matthew 9:10–13 and the distinction between association and wrongdoing.","missions":[5],"status":"study_reference"},{"id":"tradition","label":"Human tradition","x":1070,"y":340,"kind":"event","summary":"Jesus challenges substituting human tradition for God's command.","detail":"Study Mark 7:8–13, including the Corban example.","missions":[6],"status":"study_reference"},{"id":"mercy","label":"Mercy & innocence","x":905,"y":155,"kind":"event","summary":"Jesus says the innocent were condemned by those failing to understand mercy.","detail":"Study Matthew 12:7 and the prophetic phrase in Hosea 6:6.","missions":[7],"status":"study_reference"},{"id":"hunger","label":"Hunger & Sabbath","x":325,"y":165,"kind":"event","summary":"Disciples pluck grain; Jesus addresses an accusation of unlawful conduct.","detail":"Study Matthew 12:1–8, necessity, mercy, and Sabbath interpretation.","missions":[4],"status":"study_reference"},{"id":"mark3","label":"Mark 3:1–6","x":245,"y":370,"kind":"scripture","summary":"Gospel text describing healing on the Sabbath.","detail":"Text reference for reading, not an independently verified historical event.","missions":[3],"url":"https://www.biblegateway.com/passage/?search=Mark+3:1-6","status":"study_reference"},{"id":"matt12","label":"Matthew 12:1–8","x":205,"y":65,"kind":"scripture","summary":"Narrative of grain plucking and Jesus' response.","detail":"Contains the accusation context; compare literary setting.","missions":[4],"url":"https://www.biblegateway.com/passage/?search=Matthew+12:1-8","status":"study_reference"},{"id":"matt9","label":"Matthew 9:10–13","x":1040,"y":555,"kind":"scripture","summary":"Narrative of Jesus eating with tax collectors and sinners.","detail":"Do not equate inclusion or association with endorsing misconduct.","missions":[5],"url":"https://www.biblegateway.com/passage/?search=Matthew+9:10-13","status":"study_reference"},{"id":"mark7","label":"Mark 7:8–13","x":1220,"y":210,"kind":"scripture","summary":"Jesus distinguishes human tradition and the command of God.","detail":"Inspect the Corban example and claims of authority.","missions":[6],"url":"https://www.biblegateway.com/passage/?search=Mark+7:8-13","status":"study_reference"},{"id":"matt127","label":"Matthew 12:7","x":1110,"y":65,"kind":"scripture","summary":"Jesus cites mercy and the condemnation of the innocent.","detail":"Read within Matthew 12:1–8; do not detach from its argument.","missions":[7],"url":"https://www.biblegateway.com/passage/?search=Matthew+12:7","status":"study_reference"},{"id":"hosea","label":"Hosea 6:6","x":1240,"y":85,"kind":"scripture","summary":"Prophetic text cited in the mercy discussion.","detail":"Compare the wording and context of Hosea and Matthew.","missions":[7],"url":"https://www.biblegateway.com/passage/?search=Hosea+6:6","status":"study_reference"},{"id":"heb4","label":"Hebrews 4:15","x":430,"y":10,"kind":"scripture","summary":"Statement about Jesus being without sin.","detail":"Identify its textual claim and role in the governing premise.","missions":[2],"url":"https://www.biblegateway.com/passage/?search=Hebrews+4:15","status":"study_reference"},{"id":"command","label":"Divine command","x":1320,"y":440,"kind":"authority","summary":"Distinguish the text of a command from interpretations and rules based on it.","detail":"Agents must identify wording and scope before declaring violation.","missions":[6],"status":"study_reference"},{"id":"accusation","label":"An accusation","x":690,"y":590,"kind":"interpretation","summary":"An allegation is not proof of wrongdoing.","detail":"Test source, allegation, inference, and relevant authority.","missions":[10],"status":"study_reference"},{"id":"jurisdiction","label":"Finite jurisdiction","x":1130,"y":725,"kind":"authority","summary":"No human institution, agent, or AI owns ultimate belonging or conscience.","detail":"Evaluate standing, scope, grounds, necessity, proportionality and review.","missions":[10],"status":"study_reference"},{"id":"consequence","label":"Human consequence","x":860,"y":750,"kind":"method","summary":"The consequences of an incorrect map may fall upon vulnerable people.","detail":"Correction and release are part of evaluating a judgment.","missions":[10],"status":"study_reference"},{"id":"evidence","label":"Source & evidence","x":435,"y":780,"kind":"method","summary":"The map only treats evidence as verified when it has passed actual review.","detail":"A link claimed by an AI remains unverified until separately checked.","missions":[1,10],"status":"study_reference"}],"edges":[{"source":"river","target":"foundation","label":"example"},{"source":"river","target":"names","label":"named by"},{"source":"names","target":"map","label":"interpreted by"},{"source":"foundation","target":"map","label":"accountability"},{"source":"foundation","target":"premise","label":"distinct from"},{"source":"premise","target":"christ","label":"investigates"},{"source":"premise","target":"heb4","label":"scriptural claim"},{"source":"christ","target":"sabbath","label":"Gospel depiction"},{"source":"christ","target":"table","label":"Gospel depiction"},{"source":"christ","target":"tradition","label":"Gospel depiction"},{"source":"christ","target":"mercy","label":"Gospel depiction"},{"source":"christ","target":"hunger","label":"Gospel depiction"},{"source":"sabbath","target":"mark3","label":"passage"},{"source":"hunger","target":"matt12","label":"passage"},{"source":"table","target":"matt9","label":"passage"},{"source":"tradition","target":"mark7","label":"passage"},{"source":"mercy","target":"matt127","label":"passage"},{"source":"mercy","target":"hosea","label":"quotation"},{"source":"matt127","target":"hosea","label":"cites"},{"source":"hunger","target":"mercy","label":"same argument"},{"source":"mark7","target":"command","label":"compares"},{"source":"tradition","target":"command","label":"distinguishes"},{"source":"sabbath","target":"command","label":"disputed rule"},{"source":"hunger","target":"command","label":"disputed rule"},{"source":"sabbath","target":"accusation","label":"challenged by"},{"source":"hunger","target":"accusation","label":"challenged by"},{"source":"table","target":"accusation","label":"challenged by"},{"source":"accusation","target":"jurisdiction","label":"review scope"},{"source":"accusation","target":"consequence","label":"human effect"},{"source":"jurisdiction","target":"consequence","label":"review & release"},{"source":"map","target":"evidence","label":"test against"},{"source":"evidence","target":"mark3","label":"examine"},{"source":"evidence","target":"mark7","label":"examine"},{"source":"evidence","target":"matt9","label":"examine"},{"source":"evidence","target":"matt127","label":"examine"},{"source":"map","target":"accusation","label":"may misclassify"}],"width":1420,"height":900,"missions":[["The River Exists","Identity independent of naming"],["The Map Can Be Wrong","Correcting mistaken representations"],["The Sinlessness Foundation","Testing definitions and claims"],["Healing on the Sabbath","Mark 3:1–6"],["Hunger, Rest, and Necessity","Matthew 12:1–8"],["The Table of Sinners","Matthew 9:10–13"],["The Tradition Trap","Mark 7:8–13"],["Mercy Before Condemnation","Matthew 12:7 and Hosea 6:6"],["The Law and Its Fulfillment","Matthew 5:17–20"],["One Referent, Many Witnesses","Cross-tradition comparison"],["The Final False Accusation","Accountable correction and release"]],"live_case_count":0};
+const NS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+const KIND={
+  ontology:{color:"#0d776e",wash:"#def6e9",name:"Reality & reference"},
+  method:{color:"#377cbe",wash:"#e5f1ff",name:"Research method"},
+  person:{color:"#c06840",wash:"#fff0dc",name:"Gospel subject"},
+  premise:{color:"#8c5fbc",wash:"#f2e7ff",name:"Theological premise"},
+  event:{color:"#de8a44",wash:"#fff1d9",name:"Gospel account"},
+  scripture:{color:"#568ac2",wash:"#e5f1ff",name:"Scripture reference"},
+  interpretation:{color:"#b95f67",wash:"#ffe4e7",name:"Interpretive question"},
+  authority:{color:"#9e628c",wash:"#fceaf6",name:"Authority & jurisdiction"},
+  case:{color:"#087869",wash:"#cdf7e9",name:"Research case"},
+  citation:{color:"#7e8896",wash:"#eaf0f5",name:"Provider source"}
+};
+const filters=["All","Scripture","Gospel events","Research","Reality","Authority"];
+const categories={
+ "Scripture":["scripture"],"Gospel events":["event","person","premise"],
+ "Research":["case","citation","method"],"Reality":["ontology","method"],
+ "Authority":["authority","interpretation"]
+};
+const state={data:null,selected:"christ",mission:null,filter:"All",search:"",view:{x:0,y:0,w:1420,h:900},drag:null};
+function el(tag,text,cls){
+ const n=document.createElement(tag);if(text!==undefined)n.textContent=text;
+ if(cls)n.className=cls;return n;
+}
+function svg(tag,attrs){
+ const n=document.createElementNS(NS,tag);
+ Object.entries(attrs||{}).forEach(([k,v])=>n.setAttribute(k,String(v)));return n;
+}
+function children(parent,...els){els.forEach(e=>parent.append(e));return parent}
+function getNode(id){return state.data?.nodes.find(n=>n.id===id);}
+function focused(n){
+ if(state.mission!==null && !(n.missions||[]).includes(state.mission))return false;
+ if(state.filter!=="All" && !categories[state.filter].includes(n.kind))return false;
+ if(state.search.trim()){
+  const q=state.search.toLowerCase();
+  if(![n.label,n.summary,n.detail].some(x=>String(x||"").toLowerCase().includes(q)))return false;
+ }
+ return true;
+}
+function makePill(text,cls){return el("span",text,cls);}
+function position(){
+ const v=state.view;$("graph").setAttribute("viewBox",[v.x,v.y,v.w,v.h].join(" "));
+}
+function resetView(){
+ if(!state.data)return;
+ state.view={x:-60,y:-65,w:state.data.width+110,h:state.data.height+120};position();
+}
+function zoom(mult,pt=null){
+ const v=state.view,shape=$("graph").getBoundingClientRect();
+ const a=pt?{x:(pt.x-shape.left)/shape.width,y:(pt.y-shape.top)/shape.height}:{x:.5,y:.5};
+ const newW=Math.max(220,Math.min(state.data.width*2,v.w*mult));
+ const newH=Math.max(160,Math.min(state.data.height*2,v.h*mult));
+ v.x+=(v.w-newW)*a.x;v.y+=(v.h-newH)*a.y;v.w=newW;v.h=newH;
+ position();
+}
+function draw(){
+ const edges=$("connections"),group=$("nodes");edges.replaceChildren();group.replaceChildren();
+ if(!state.data)return;
+ const active=getNode(state.selected);
+ const neighbors=new Set();
+ if(active)state.data.edges.forEach(e=>{
+  if(e.source===active.id)neighbors.add(e.target);
+  if(e.target===active.id)neighbors.add(e.source);
+ });
+ const ids=new Set(state.data.nodes.filter(n=>focused(n)).map(n=>n.id));
+ state.data.edges.forEach(e=>{
+  const a=getNode(e.source),b=getNode(e.target);if(!a||!b)return;
+  const highlight=!!active&&(e.source===active.id||e.target===active.id);
+  const path=svg("path",{class:"connection"+(highlight?" hot":""),d:"M "+a.x+" "+a.y+" Q "+((a.x+b.x)/2)+" "+((a.y+b.y)/2-16)+" "+b.x+" "+b.y});
+  if(!highlight && (state.search||state.mission!==null||state.filter!=="All")&&!(ids.has(a.id)&&ids.has(b.id)))path.style.opacity=".06";
+  edges.append(path);
+ });
+ state.data.nodes.forEach(n=>{
+  const style=KIND[n.kind]||KIND.method;
+  const sel=n.id===state.selected;
+  const isVisible=focused(n)||sel;
+  const related=active&&neighbors.has(n.id);
+  const muted=!isVisible&&!related;
+  const g=svg("g",{
+    class:"node"+(sel?" selected":"")+(muted?" muted":""),
+    transform:"translate("+(n.x-78)+","+(n.y-27)+")",tabindex:"0",role:"button",
+    "aria-label":"Explore "+n.label
+  });
+  const rect=svg("rect",{class:"plate",width:156,height:54,rx:15,fill:style.wash,stroke:style.color});
+  const bar=svg("rect",{x:9,y:9,width:5,height:36,rx:2,fill:style.color});
+  const title=svg("text",{class:"primary",x:23,y:23});
+  const text=String(n.label||"");
+  title.textContent=text.length>22?text.slice(0,21)+"…":text;
+  const sub=svg("text",{class:"subtitle",x:23,y:39});
+  sub.textContent=(n.kind==="case"?"Investigation · "+n.status:style.name).slice(0,26);
+  children(g,rect,bar,title,sub);
+  g.addEventListener("pointerdown",e=>e.stopPropagation());
+  g.addEventListener("click",e=>{e.stopPropagation();selectNode(n.id);});
+  g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectNode(n.id)}});
+  group.append(g);
+ });
+}
+function selectNode(id,center=false){
+ state.selected=id;draw();inspect();
+ if(center){
+  const n=getNode(id),v=state.view;
+  if(n){v.x=n.x-v.w/2;v.y=n.y-v.h/2;position();}
+ }
+}
+function missionClick(n){
+ state.mission=state.mission===n?null:n;
+ buildMissionButtons();draw();renderInspectorMission();
+}
+function buildMissionButtons(){
+ const panel=$("missions");panel.replaceChildren();
+ const all=el("button",undefined,"mission"+(state.mission===null?" active":""));
+ children(all,el("span","∞","num"),children(el("span"),el("span","Full map","mtitle"),el("span","Explore everything","mdesc")));
+ all.onclick=()=>{state.mission=null;buildMissionButtons();draw();};panel.append(all);
+ state.data.missions.forEach((m,i)=>{
+  const b=el("button",undefined,"mission"+(state.mission===i?" active":""));
+  children(b,el("span",String(i+1).padStart(2,"0"),"num"),
+    children(el("span"),el("span",m[0],"mtitle"),el("span",m[1],"mdesc")));
+  b.onclick=()=>missionClick(i);panel.append(b);
+ });
+}
+function createFilters(){
+ const panel=$("filters");panel.replaceChildren();
+ filters.forEach(name=>{
+  const b=el("button",name,"filter"+(state.filter===name?" active":""));
+  b.onclick=()=>{state.filter=name;createFilters();draw();};
+  panel.append(b);
+ });
+}
+function relatedNodes(id){
+ const out=[];
+ state.data.edges.forEach(e=>{
+  if(e.source===id){const n=getNode(e.target);if(n)out.push({n,rel:e.label});}
+  else if(e.target===id){const n=getNode(e.source);if(n)out.push({n,rel:e.label});}
+ });
+ return out;
+}
+function inspect(){
+ const n=getNode(state.selected),panel=$("inspector");panel.replaceChildren();
+ if(!n){children(panel,el("h2","Explore the map."),el("p","Select a node to see what it connects to."));return;}
+ const kind=KIND[n.kind]||KIND.method;
+ children(panel,el("div",kind.name.toUpperCase(),"kicker"),el("h2",n.label),makePill(
+  n.kind==="case"?"RESEARCH "+n.status.toUpperCase()
+  :n.kind==="citation"?"CITATION · "+n.status.toUpperCase()
+  :"STUDY REFERENCE", "kind-pill"));
+ panel.append(el("p",n.summary),el("div",n.detail,"details"));
+ if(n.kind==="case"){
+   const p=n.case_progress||{};
+   const stats=el("div",undefined,"totals");
+   [["First findings",(p.findings||0)+"/7"],["Debate events",(p.events||0)+"/28"],["Ledger layers",(p.ledger_layers||0)+"/7"],["Citation reviews",String(p.citation_reviews||0)]]
+    .forEach(([name,num])=>children(stats,children(el("div",undefined,"total"),el("b",num),el("span",name))));
+   panel.append(stats);
+   const a=el("a","Open full investigation ↗","action");a.href="/research?case="+encodeURIComponent(n.case_id);panel.append(a);
+ }
+ if(n.url){
+  const a=el("a",n.kind==="citation"?"Open reported source ↗":"Read Scripture passage ↗","action");
+  a.href=n.url;a.target="_blank";a.rel="noopener noreferrer";panel.append(a);
+ }
+ if(n.kind!=="case"&&n.kind!=="citation"){
+  const buttons=el("div",undefined,"links");
+  const missions=[...new Set(n.missions||[])];
+  missions.forEach(m=>{
+   const b=el("button","Explore mission "+(m+1)+": "+state.data.missions[m][0],"link-node");
+   b.onclick=()=>{state.mission=m;buildMissionButtons();draw();};
+   buttons.append(b);
+  });
+  panel.append(el("div","INVESTIGATION PATHS","kicker"),buttons);
+ }
+ const edges=relatedNodes(n.id);
+ if(edges.length){
+  panel.append(el("hr",undefined,"sep"),el("div","CONNECTED IDEAS","kicker"));
+  const box=el("div",undefined,"links");
+  edges.slice(0,18).forEach(({n:target,rel})=>{
+   const b=el("button",undefined,"link-node");
+   b.textContent=target.label+"  ·  "+rel;
+   b.onclick=()=>selectNode(target.id,true);box.append(b);
+  });panel.append(box);
+ }
+ if(n.kind==="citation"){
+  panel.append(el("div","A model-supplied URL is NOT independently verified by being displayed on this map.","notice"));
+ }else if(n.kind==="premise"){
+  panel.append(el("div","Theological premise: distinct from what historical verification independently establishes.","notice"));
+ }else if(n.kind==="scripture"){
+  panel.append(el("div","Scriptural citation is a reading reference. Verify wording, context and translation before treating interpretations as facts.","notice"));
+ }else{
+  panel.append(el("div","This is a research map, not a declaration of religious consensus. Follow and challenge every connection.","notice"));
+ }
+}
+function renderInspectorMission(){if(!getNode(state.selected))inspect();}
+async function refresh(){
+ const json=PUBLIC_GRAPH;
+ if(!Array.isArray(json.nodes)||!Array.isArray(json.edges))throw Error("Invalid map data");
+ const prev=state.data?.live_case_count;
+ state.data=json;state.data.missions=json.missions;
+ $("paper").setAttribute("width",json.width);$("paper").setAttribute("height",json.height);
+ $("caseCount").textContent=json.live_case_count?json.live_case_count+" saved cases":"Study map · no AI run required";
+ $("dot").style.background=json.live_case_count?"#1ca37f":"#c5904f";
+ if(prev===undefined||prev!==json.live_case_count)resetView();
+ if(!getNode(state.selected))state.selected="christ";
+ buildMissionButtons();draw();inspect();
+}
+let pan=null;
+$("graph").addEventListener("pointerdown",e=>{
+ if(e.button!==0)return;
+ pan={x:e.clientX,y:e.clientY,view:{...state.view}};
+ $("graph").classList.add("grabbing");
+ $("graph").setPointerCapture(e.pointerId);
+});
+$("graph").addEventListener("pointermove",e=>{
+ if(!pan)return;
+ const rect=$("graph").getBoundingClientRect();
+ state.view.x=pan.view.x-(e.clientX-pan.x)*pan.view.w/rect.width;
+ state.view.y=pan.view.y-(e.clientY-pan.y)*pan.view.h/rect.height;
+ position();
+});
+function stopPan(){pan=null;$("graph").classList.remove("grabbing")}
+$("graph").addEventListener("pointerup",stopPan);$("graph").addEventListener("pointercancel",stopPan);
+$("graph").addEventListener("wheel",e=>{e.preventDefault();zoom(e.deltaY>0?1.12:.89,{x:e.clientX,y:e.clientY});},{passive:false});
+$("zoomIn").onclick=()=>zoom(.78);$("zoomOut").onclick=()=>zoom(1.28);$("fit").onclick=resetView;
+$("search").oninput=e=>{state.search=e.target.value;draw();};
+createFilters();
+refresh().catch(err=>{$("map-error").textContent=err.message;});
+// Static public preview; no polling, secrets, user cases, or model calls.
+</script>
+</body></html>
