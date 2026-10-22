@@ -124,3 +124,11 @@ Evaluation consumes the frozen JSONL files; normal evaluator execution does not 
 ## Deliberately disabled/deferred
 
 Production credentials and live external-action adapters are deployment concerns and are not required for the core release candidate. Native provider-specific bot swarms, provider-owned company memory, and prompt-kit-only architecture are outside the StillPoint core design.
+
+## Capture77 visual research map — public iPhone preview
+
+**Open the live, mobile-friendly interactive study map:** https://capture77-public-map.vercel.app
+
+The public map explores 23 Scripture/research topics and 36 relationships across 11 missions, with search, filtering, pan, zoom and direct Scripture passage links. Nodes are curated *study references* rather than a declaration of independently verified historical evidence or theological consensus.
+
+The public website contains **no AI keys, billed model calls, private investigation records, or SQLite data**. Its production Vercel deployment is `dpl_HAKzjG8AEndbxmN4pkxNCc52oXy3`. The public preview's source is in `capture77-map/index.html`. The separate research backend and 77 investigator code remain in the private StillPointOS project; they are not deployed here.
