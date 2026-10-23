@@ -67,8 +67,22 @@ h1{font-size:clamp(20px,2.3vw,27px);letter-spacing:-.8px;margin:2px 0 0;font-wei
 .legend{display:grid;gap:9px;margin-top:18px;font-size:11px;color:#627978}.legend-item{display:flex;align-items:center;gap:9px}
 .legend-item i{display:inline-block;height:12px;width:12px;border-radius:4px;flex-shrink:0}
 #map-error{font-size:13px;color:#8d3a2c;padding:0 18px}.mobile-header{display:none}
+.sheet-toggle{display:none;border:1px solid #a9c9b9;background:#ecf7f0;color:#12675c;padding:10px 13px;border-radius:11px;font-weight:800;width:100%;margin:0 0 10px}
+.scripture-guide{background:#f1f7ed;border:1px solid #d0dec6;border-radius:14px;padding:12px 14px;margin:14px 0}
+.scripture-guide h3{font-size:14px;margin:2px 0 7px;letter-spacing:-.2px}
+.scripture-guide p{font-size:12.5px;line-height:1.65;margin:7px 0;color:#3b6153}
+.scripture-guide small{display:block;font-size:10px;color:#617b6a;margin-top:10px;line-height:1.5}
+.scripture-guide .source-label{color:#207362;font-size:10px;font-weight:820;letter-spacing:1px}
 @media(max-width:1070px){.page{grid-template-columns:210px minmax(0,1fr) 255px}.rail{padding:18px 11px}.inspector{padding:19px 15px}}
-@media(max-width:810px){.page{display:flex;flex-direction:column;height:auto;min-height:0}.rail{order:2;display:flex;overflow-x:auto;gap:7px;padding:9px;border-right:0;border-top:1px solid #d9e0d9;border-bottom:1px solid #d9e0d9;flex:0 0 auto}#missions{display:flex;flex-direction:row;gap:8px}.rail-title,.rail .sep,.rail .how{display:none}.mission{min-width:151px;flex:0 0 151px;padding:9px}.mdesc{display:none}.canvas-wrap{order:1;height:70svh;min-height:430px}.inspector{order:3;border-left:0;border-top:1px solid #dbe4dc}.topbar{padding:12px}.mobile-header{display:block}.inspector .totals{max-width:350px}}
+@media(max-width:810px){.page{display:flex;flex-direction:column;height:auto;min-height:0}.rail{order:2;display:flex;overflow-x:auto;gap:7px;padding:9px;border-right:0;border-top:1px solid #d9e0d9;border-bottom:1px solid #d9e0d9;flex:0 0 auto}#missions{display:flex;flex-direction:row;gap:8px}.rail-title,.rail .sep,.rail .how{display:none}.mission{min-width:151px;flex:0 0 151px;padding:9px}.mdesc{display:none}.canvas-wrap{order:1;height:70svh;min-height:430px}.inspector{order:3;border-left:0;border-top:1px solid #dbe4dc}
+body.js-ready .inspector{position:fixed;z-index:30;left:10px;right:10px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);box-shadow:0 10px 44px #0b363c36;border:1px solid #b6d5c7;border-radius:18px 18px 14px 14px;max-height:min(75svh,690px);min-width:0;overscroll-behavior:contain}
+body.js-ready .inspector:not(.sheet-open){height:143px;overflow:hidden}
+body.js-ready .inspector.sheet-open{height:auto;min-height:185px;overflow-y:auto}
+body.js-ready .sheet-toggle{display:block;position:sticky;top:0;z-index:1}
+body.js-ready .inspector:not(.sheet-open) .details,body.js-ready .inspector:not(.sheet-open) .kind-pill,body.js-ready .inspector:not(.sheet-open) .links,body.js-ready .inspector:not(.sheet-open) .notice,body.js-ready .inspector:not(.sheet-open) .scripture-guide,body.js-ready .inspector:not(.sheet-open) .action{display:none}
+body.js-ready .inspector:not(.sheet-open) p{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin:3px 0}
+body.js-ready .inspector:not(.sheet-open) h2{margin:4px 0;font-size:18px}
+body.js-ready .bottomnote{bottom:163px}.topbar{padding:12px}.mobile-header{display:block}.inspector .totals{max-width:350px}}
 </style>
 </head>
 <body>
@@ -114,12 +128,13 @@ const KIND={
   citation:{color:"#7e8896",wash:"#eaf0f5",name:"Provider source"}
 };
 const filters=["All","Scripture","Gospel events","Research","Reality","Authority"];
+const SCRIPTURE_GUIDES={"heb4":["Hebrews 4:14–16 — the surrounding argument","Hebrews presents Jesus as the high priest able to sympathize with human weakness, tempted as humans are, yet without sin.","The following verse calls readers to approach the throne of grace for mercy and help. The sinlessness statement belongs to this theological argument, rather than serving as a standalone historical demonstration."],"mark3":["Mark 3:1–6 — healing and a disputed rule","In a synagogue, Jesus encounters a man with a withered hand while observers watch for grounds to accuse him of Sabbath healing.","He asks whether it is lawful on the Sabbath to do good or harm, to save life or kill. The healing takes place; opponents then discuss destroying him. An accusation is not the same as an established violation."],"matt12":["Matthew 12:1–8 — hunger, mercy and Sabbath","The disciples pick grain when hungry. Pharisees call the act unlawful on the Sabbath; Jesus answers with the examples of David and priestly service.","He cites the call for mercy rather than sacrifice and says the accusers condemned the innocent. Read the whole argument before defining the alleged violation."],"matt9":["Matthew 9:10–13 — at the table","Jesus eats with tax collectors and people labeled sinners. Pharisees question his disciples about this association.","Jesus invokes the image of a physician serving people in need and the demand for mercy rather than sacrifice. Association by itself does not establish wrongdoing."],"mark7":["Mark 7:8–13 — tradition and command","Jesus confronts the elevation of inherited human tradition over the command of God.","His example involves resources declared Corban in a manner that prevents support for parents. Investigate the scope of the underlying command and the rule imposed in its name."],"matt127":["Matthew 12:7 — the condemnation of the innocent","Within the Sabbath dispute, Jesus cites the prophetic call for mercy rather than sacrifice.","He explicitly connects misunderstanding mercy with condemning those he calls innocent. The passage joins interpretation to its consequences for accused people."],"hosea":["Hosea 6:6 — the prophetic context","Hosea contrasts covenant loyalty or mercy and knowledge of God with offerings and sacrifice.","Jesus quotes this prophetic passage in arguments about meals with sinners and Sabbath conduct. Examine both settings without assuming identical contexts."]};
 const categories={
  "Scripture":["scripture"],"Gospel events":["event","person","premise"],
  "Research":["case","citation","method"],"Reality":["ontology","method"],
  "Authority":["authority","interpretation"]
 };
-const state={data:null,selected:"christ",mission:null,filter:"All",search:"",view:{x:0,y:0,w:1420,h:900},drag:null};
+const state={data:null,selected:"christ",mission:null,filter:"All",search:"",sheetOpen:false,view:{x:0,y:0,w:1420,h:900},drag:null};
 function el(tag,text,cls){
  const n=document.createElement(tag);if(text!==undefined)n.textContent=text;
  if(cls)n.className=cls;return n;
@@ -204,7 +219,9 @@ function draw(){
  });
 }
 function selectNode(id,center=false){
- state.selected=id;draw();inspect();
+ state.selected=id;
+ if(window.innerWidth<=810)state.sheetOpen=true;
+ draw();inspect();
  if(center){
   const n=getNode(id),v=state.view;
   if(n){v.x=n.x-v.w/2;v.y=n.y-v.h/2;position();}
@@ -242,8 +259,18 @@ function relatedNodes(id){
  });
  return out;
 }
+function updateSheet(){
+ document.body.classList.add("js-ready");
+ $("inspector").classList.toggle("sheet-open",state.sheetOpen);
+}
 function inspect(){
  const n=getNode(state.selected),panel=$("inspector");panel.replaceChildren();
+ const toggle=el("button",state.sheetOpen?"← Back to map":"↑ Read this connection","sheet-toggle");
+ toggle.type="button";toggle.onclick=()=>{
+  state.sheetOpen=!state.sheetOpen;updateSheet();
+  toggle.textContent=state.sheetOpen?"← Back to map":"↑ Read this connection";
+ };
+ panel.append(toggle);updateSheet();
  if(!n){children(panel,el("h2","Explore the map."),el("p","Select a node to see what it connects to."));return;}
  const kind=KIND[n.kind]||KIND.method;
  children(panel,el("div",kind.name.toUpperCase(),"kicker"),el("h2",n.label),makePill(
@@ -251,6 +278,14 @@ function inspect(){
   :n.kind==="citation"?"CITATION · "+n.status.toUpperCase()
   :"STUDY REFERENCE", "kind-pill"));
  panel.append(el("p",n.summary),el("div",n.detail,"details"));
+ if(n.kind==="scripture" && SCRIPTURE_GUIDES[n.id]){
+  const guide=SCRIPTURE_GUIDES[n.id];
+  const card=el("section",undefined,"scripture-guide");
+  card.append(el("div","PASSAGE CONTEXT · READ IN THE MAP","source-label"),el("h3",guide[0]));
+  guide.slice(1).forEach(p=>card.append(el("p",p)));
+  card.append(el("small","Contextual study guide, not a Scripture quotation. For precise wording, read the complete biblical passage and compare translations."));
+  panel.append(card);
+ }
  if(n.kind==="case"){
    const p=n.case_progress||{};
    const stats=el("div",undefined,"totals");
@@ -260,7 +295,7 @@ function inspect(){
    const a=el("a","Open full investigation ↗","action");a.href="/research?case="+encodeURIComponent(n.case_id);panel.append(a);
  }
  if(n.url){
-  const a=el("a",n.kind==="citation"?"Open reported source ↗":"Read Scripture passage ↗","action");
+  const a=el("a",n.kind==="citation"?"Open reported source ↗":"Read complete passage externally ↗",n.kind==="scripture"?"action secondary":"action");
   a.href=n.url;a.target="_blank";a.rel="noopener noreferrer";panel.append(a);
  }
  if(n.kind!=="case"&&n.kind!=="citation"){
@@ -327,6 +362,6 @@ $("zoomIn").onclick=()=>zoom(.78);$("zoomOut").onclick=()=>zoom(1.28);$("fit").o
 $("search").oninput=e=>{state.search=e.target.value;draw();};
 createFilters();
 refresh().catch(err=>{$("map-error").textContent=err.message;});
-// Static public map: no research backend or polling.
+// Public static page; no paid calls, case backend or polling.
 </script>
 </body></html>
