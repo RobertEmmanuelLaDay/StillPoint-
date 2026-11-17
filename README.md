@@ -132,3 +132,11 @@ Production credentials and live external-action adapters are deployment concerns
 The public map explores 23 Scripture/research topics and 36 relationships across 11 missions, with search, filtering, pan, zoom and direct Scripture passage links. Nodes are curated *study references* rather than a declaration of independently verified historical evidence or theological consensus.
 
 The public website contains **no AI keys, billed model calls, private investigation records, or SQLite data**. Its production Vercel deployment is `dpl_HAKzjG8AEndbxmN4pkxNCc52oXy3`. The public preview's source is in `capture77-map/index.html`. The separate research backend and 77 investigator code remain in the private StillPointOS project; they are not deployed here.
+
+## Checkpoint 004 — current authority versus historical custody (2026-11-17)
+
+This earlier company runtime owns finite claims and warrants, not calendar-law authorship. Its evaluation fixtures are historical evidence, not permanent runtime authority.
+
+Robert Emmanuel LaDay's November 17, 2026 author-selected working calendar rules are documented in [StillPoint Core Canonical](https://github.com/FortCollinsBarber-netizen/StillPoint-Core-Canonical/blob/90896d71faa11ceb69106434d459f0b25fe56e41/docs/STILLPOINT_TEMPORAL_ARCHITECTURE_AUTHOR_SELECTION_2026-11-17.md): **Common March 25** sacred source-year anchor; **2027** Jubilee epoch; **overlapping 49-year cycles**; distinct **364-day civil grid**; finite **2026–2075** publication. The first proclamation year **2076** is only a mathematical result until separately published and qualified. No civil debt/property/legal action is automatically enacted.
+
+Earlier documents, snapshots, frozen eval fixtures and old calendar defaults remain immutable **as historical evidence**, but no historical lock grants permanent operating jurisdiction. Author-approved successor versions require traceable provenance, matching runtime/contracts/resources, cross-repository qualification, and tests. Current runtime authority must not be inferred from this repository's older checkpoint or a file named `canonical`.
