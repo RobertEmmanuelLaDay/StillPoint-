@@ -132,3 +132,11 @@ Production credentials and live external-action adapters are deployment concerns
 The public map explores 23 Scripture/research topics and 36 relationships across 11 missions, with search, filtering, pan, zoom and direct Scripture passage links. Nodes are curated *study references* rather than a declaration of independently verified historical evidence or theological consensus.
 
 The public website contains **no AI keys, billed model calls, private investigation records, or SQLite data**. Its production Vercel deployment is `dpl_HAKzjG8AEndbxmN4pkxNCc52oXy3`. The public preview's source is in `capture77-map/index.html`. The separate research backend and 77 investigator code remain in the private StillPointOS project; they are not deployed here.
+
+## Checkpoint 004 — versioned current temporal authority (November 17, 2026)
+
+**Earlier company runtime with distinct finite-warrant jurisdiction.** Historical temporal warrants, claims, evaluations and source custody remain valid records, but this repository does not own the current Canonical Core Calendar engine. Any deployment of this company runtime needs its own exact qualified pin; it cannot silently reactivate superseded sacred-year/Jubilee defaults or claim civic-law authority.
+
+**Author-approved current working rules:** Common March 25 as the StillPoint schematic sacred source-year anchor; 2027 Jubilee epoch; overlapping 49-year cycles, where the fiftieth proclamation overlaps the following Cycle Year 1; the separate 364-day Common Calendar civil grid; finite 2026–2075 publication, with 2076 mathematical-only until separately published. These are **author-selected working rules, not civil enactment or universal religious prescriptions**. They are supersedable by a later documented authorized and tested successor; historical records remain intact.
+
+**Current source:** [Core Checkpoint 004 decision and implementation](https://github.com/FortCollinsBarber-netizen/StillPoint-Core-Canonical/blob/90896d71faa11ceb69106434d459f0b25fe56e41/docs/STILLPOINT_TEMPORAL_ARCHITECTURE_AUTHOR_SELECTION_2026-11-17.md). StillPointOS integration is tracked separately; no unqualified dependency receives production authorization solely by observing a newer branch head.
